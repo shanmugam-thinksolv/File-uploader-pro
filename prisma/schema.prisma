@@ -1,0 +1,53 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model FormConfig {
+  id              Int      @id @default(autoincrement())
+  logoUrl         String?
+  primaryColor    String   @default("#000000")
+  secondaryColor  String   @default("#ffffff")
+  backgroundColor String   @default("#f3f4f6")
+  fontFamily      String   @default("Inter")
+  
+  isPublished     Boolean  @default(false)
+  accessLevel     String   @default("ANYONE") // "ANYONE", "INVITED"
+  allowedEmails   String[] // List of emails if accessLevel is INVITED
+  
+  updatedAt       DateTime @updatedAt
+}
+
+model UploadConfig {
+  id                  Int      @id @default(autoincrement())
+  allowedTypes        String[] // e.g. ["image/png", "application/pdf"]
+  maxSizeMB           Int      @default(5)
+  
+  isPasswordProtected Boolean  @default(false)
+  password            String?
+  
+  isCaptchaEnabled    Boolean  @default(false)
+  enableSubmitAnother Boolean  @default(true)
+  
+  updatedAt           DateTime @updatedAt
+}
+
+model UploadRecord {
+  id              String   @id @default(uuid())
+  referenceId     String   @unique // Format: YYYYMMDD-XXXX
+  
+  fileName        String
+  fileUrl         String   // Google Drive Link (or mock URL)
+  mimeType        String
+  sizeBytes       Int
+  
+  uploaderName    String
+  uploaderEmail   String
+  customMetadata  Json?    // Flexible field for dynamic form inputs
+  
+  createdAt       DateTime @default(now())
+}
