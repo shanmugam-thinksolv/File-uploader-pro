@@ -7,47 +7,62 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model FormConfig {
-  id              Int      @id @default(autoincrement())
+model Form {
+  id          String   @id @default(uuid())
+  title       String   @default("Untitled Form")
+  description String?
+  
+  // Design Config
   logoUrl         String?
   primaryColor    String   @default("#000000")
   secondaryColor  String   @default("#ffffff")
   backgroundColor String   @default("#f3f4f6")
   fontFamily      String   @default("Inter")
   
-  isPublished     Boolean  @default(false)
-  accessLevel     String   @default("ANYONE") // "ANYONE", "INVITED"
-  allowedEmails   String[] // List of emails if accessLevel is INVITED
-  
-  updatedAt       DateTime @updatedAt
-}
-
-model UploadConfig {
-  id                  Int      @id @default(autoincrement())
-  allowedTypes        String[] // e.g. ["image/png", "application/pdf"]
+  // Upload Config
+  allowedTypes        String   @default("") // Comma-separated
   maxSizeMB           Int      @default(5)
-  
   isPasswordProtected Boolean  @default(false)
   password            String?
-  
   isCaptchaEnabled    Boolean  @default(false)
   enableSubmitAnother Boolean  @default(true)
   
-  updatedAt           DateTime @updatedAt
-}
-
-model UploadRecord {
-  id              String   @id @default(uuid())
-  referenceId     String   @unique // Format: YYYYMMDD-XXXX
+  // Access Control & Expiry
+  isPublished         Boolean  @default(false)
+  isAcceptingResponses Boolean @default(true)
+  expiryDate          DateTime?
+  accessLevel         String   @default("ANYONE") // "ANYONE", "INVITED"
+  allowedEmails       String   @default("") // Comma-separated
   
-  fileName        String
-  fileUrl         String   // Google Drive Link (or mock URL)
-  mimeType        String
-  sizeBytes       Int
+  // Metadata & Organization
+  enableMetadataSpreadsheet Boolean @default(false)
+  subfolderOrganization     String  @default("NONE") // "NONE", "DATE", "SUBMITTER", "CUSTOM"
+  customSubfolderField      String?
+  enableSmartGrouping       Boolean @default(false)
   
-  uploaderName    String
-  uploaderEmail   String
-  customMetadata  Json?    // Flexible field for dynamic form inputs
+  submissions     Submission[]
   
   createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model Submission {
+  id          String   @id @default(uuid())
+  formId      String
+  form        Form     @relation(fields: [formId], references: [id], onDelete: Cascade)
+  
+  // File Info
+  fileUrl     String
+  fileName    String
+  fileType    String
+  fileSize    Int
+  
+  // Submitter Info
+  submitterName  String?
+  submitterEmail String?
+  
+  // Additional Metadata
+  metadata    Json?
+  
+  createdAt   DateTime @default(now())
 }

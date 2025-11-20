@@ -1,21 +1,41 @@
-import { NextResponse } from 'next/server'
+import { NextResponse } from 'next/server';
+import { writeFile } from 'fs/promises';
+import path from 'path';
+import { v4 as uuidv4 } from 'uuid';
 
 export async function POST(request: Request) {
-    // In a real app, we would parse the FormData here
-    // const formData = await request.formData()
-    // const file = formData.get('file')
+    try {
+        const formData = await request.formData();
+        const file = formData.get('file') as File;
 
-    // Mock processing delay
-    await new Promise(resolve => setTimeout(resolve, 1500))
+        if (!file) {
+            return NextResponse.json(
+                { error: 'No file uploaded' },
+                { status: 400 }
+            );
+        }
 
-    // Generate Reference ID
-    const date = new Date().toISOString().slice(0, 10).replace(/-/g, "")
-    const random = Math.floor(1000 + Math.random() * 9000)
-    const referenceId = `${date}-${random}`
+        const buffer = Buffer.from(await file.arrayBuffer());
+        const fileName = `${uuidv4()}-${file.name}`;
+        const uploadDir = path.join(process.cwd(), 'public/uploads');
+        const filePath = path.join(uploadDir, fileName);
 
-    return NextResponse.json({
-        success: true,
-        referenceId,
-        message: "File uploaded successfully"
-    })
+        await writeFile(filePath, buffer);
+
+        // Return the URL relative to the public folder
+        const fileUrl = `/uploads/${fileName}`;
+
+        return NextResponse.json({
+            url: fileUrl,
+            fileName: file.name,
+            fileType: file.type,
+            fileSize: file.size
+        });
+    } catch (error) {
+        console.error('Error uploading file:', error);
+        return NextResponse.json(
+            { error: 'Failed to upload file' },
+            { status: 500 }
+        );
+    }
 }

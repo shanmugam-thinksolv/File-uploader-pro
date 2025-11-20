@@ -3,7 +3,7 @@
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
-import { ArrowRight, UploadCloud, Shield, Zap, Globe } from "lucide-react"
+import { ArrowRight, Shield, Zap, Globe } from "lucide-react"
 import { Footer } from "@/components/footer"
 
 export default function Home() {
@@ -27,35 +27,40 @@ export default function Home() {
         <div className="absolute bottom-0 left-0 right-0 top-0 bg-[radial-gradient(circle_800px_at_100%_200px,#d5c5ff,transparent)]"></div>
       </div>
 
-      {/* Navigation */}
-      <nav className="flex items-center justify-between px-6 py-6 max-w-7xl mx-auto w-full">
-        <div className="flex items-center gap-2">
-          <div className="bg-indigo-600 p-2 rounded-lg shadow-sm">
-            <UploadCloud className="w-5 h-5 text-white" />
+      {/* Navigation - Floating Island Design */}
+      <div className="px-4 pt-4 z-20">
+        <header className="bg-white/90 backdrop-blur-md border border-gray-200/50 rounded-2xl shadow-lg mx-auto max-w-7xl">
+          <div className="px-6 h-16 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 bg-gradient-to-br from-indigo-600 to-violet-600 rounded-xl flex items-center justify-center shadow-indigo-200 shadow-md">
+                <span className="text-white font-bold text-lg">F</span>
+              </div>
+              <span className="font-bold text-lg text-gray-900 tracking-tight">File Uploader Pro</span>
+            </div>
+
+            <nav className="hidden md:flex items-center gap-8">
+              <Link href="#" className="text-sm font-medium text-gray-600 hover:text-indigo-600 transition-colors">
+                Product
+              </Link>
+              <Link href="#" className="text-sm font-medium text-gray-600 hover:text-indigo-600 transition-colors">
+                Security
+              </Link>
+              <Link href="#" className="text-sm font-medium text-gray-600 hover:text-indigo-600 transition-colors">
+                Pricing
+              </Link>
+              <div className="h-4 w-px bg-gray-200"></div>
+              <Link href="/admin/login" className="text-sm font-medium text-gray-600 hover:text-indigo-600 transition-colors">
+                Log in
+              </Link>
+              <Link href="/admin/login">
+                <Button className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-full px-6 shadow-md hover:shadow-lg transition-all">
+                  Get Started
+                </Button>
+              </Link>
+            </nav>
           </div>
-          <span className="text-xl font-bold tracking-tight text-gray-900">File Uploader Pro</span>
-        </div>
-
-        <div className="hidden md:flex items-center gap-8 text-sm font-medium text-gray-600">
-          <span className="cursor-default hover:text-indigo-600 transition-colors">Product</span>
-          <span className="cursor-default hover:text-indigo-600 transition-colors">Security</span>
-          <span className="cursor-default hover:text-indigo-600 transition-colors">Enterprise</span>
-          <span className="cursor-default hover:text-indigo-600 transition-colors">Pricing</span>
-        </div>
-
-        <div>
-          <Link href="/admin/login">
-            <Button variant="ghost" className="font-semibold text-gray-700 hover:text-indigo-600 hover:bg-indigo-50 mr-2">
-              Log in
-            </Button>
-          </Link>
-          <Link href="/admin/login">
-            <Button className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-5 rounded-full shadow-md transition-all hover:shadow-lg">
-              Get Started
-            </Button>
-          </Link>
-        </div>
-      </nav>
+        </header>
+      </div>
 
       {/* Hero Section */}
       <main className="flex-1 flex flex-col items-center justify-center px-4 pt-16 pb-24 max-w-5xl mx-auto w-full text-center">
@@ -101,7 +106,7 @@ export default function Home() {
               <Zap className="w-6 h-6" />
             </div>
             <h3 className="text-lg font-bold text-gray-900 mb-2">Lightning Fast</h3>
-            <p className="text-gray-500">Drag, drop, done. We handle large files with ease so you don't have to.</p>
+            <p className="text-gray-500">Drag, drop, done. We handle large files with ease so you don&apos;t have to.</p>
           </div>
 
           <div className="bg-white p-6 rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-gray-100 hover:border-indigo-100 transition-colors">
