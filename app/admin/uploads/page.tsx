@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, Suspense } from "react"
 import { useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Download, FileText, Search, Loader2, ArrowLeft, ExternalLink } from "lucide-react"
 import { Input } from "@/components/ui/input"
 
-export default function UploadsPage() {
+function UploadsContent() {
     const searchParams = useSearchParams()
     const formIdParam = searchParams.get('formId')
 
@@ -41,7 +41,12 @@ export default function UploadsPage() {
             const url = formId ? `/api/submissions?formId=${formId}` : '/api/submissions'
             const res = await fetch(url)
             const data = await res.json()
-            setSubmissions(data)
+            if (Array.isArray(data)) {
+                setSubmissions(data)
+            } else {
+                setSubmissions([])
+                console.error('Fetched data is not an array:', data)
+            }
         } catch (error) {
             console.error('Failed to fetch submissions', error)
         } finally {
@@ -192,7 +197,7 @@ export default function UploadsPage() {
                                                     <span className="text-sm">{submission.form?.title || 'Unknown'}</span>
                                                 </td>
                                                 <td className="p-4 align-middle">{formatSize(submission.fileSize)}</td>
-                                                <td className="p-4 align-middle">{formatDate(submission.submittedAt)}</td>
+                                                <td className="p-4 align-middle">{formatDate(submission.createdAt)}</td>
                                                 <td className="p-4 align-middle text-right">
                                                     <a href={submission.fileUrl} target="_blank" rel="noopener noreferrer">
                                                         <Button variant="ghost" size="sm">
@@ -210,5 +215,13 @@ export default function UploadsPage() {
                 </CardContent>
             </Card>
         </div>
+    )
+}
+
+export default function UploadsPage() {
+    return (
+        <Suspense fallback={<div className="flex items-center justify-center min-h-screen"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>}>
+            <UploadsContent />
+        </Suspense>
     )
 }

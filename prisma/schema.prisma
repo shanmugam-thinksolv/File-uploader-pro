@@ -18,10 +18,15 @@ model Form {
   secondaryColor  String   @default("#ffffff")
   backgroundColor String   @default("#f3f4f6")
   fontFamily      String   @default("Inter")
+  buttonTextColor String   @default("#ffffff")
+  cardStyle       String   @default("shadow") // "shadow", "flat", "border"
+  borderRadius    String   @default("md")     // "none", "sm", "md", "lg", "full"
+  coverImageUrl   String?
   
   // Upload Config
   allowedTypes        String   @default("") // Comma-separated
   maxSizeMB           Int      @default(5)
+  driveEnabled        Boolean  @default(false)
   isPasswordProtected Boolean  @default(false)
   password            String?
   isCaptchaEnabled    Boolean  @default(false)
@@ -39,6 +44,10 @@ model Form {
   subfolderOrganization     String  @default("NONE") // "NONE", "DATE", "SUBMITTER", "CUSTOM"
   customSubfolderField      String?
   enableSmartGrouping       Boolean @default(false)
+  
+  // New Features
+  uploadFields              Json?   // Array of {id, label, allowedTypes, maxSize}
+  customQuestions           Json?   // Array of {id, type, label, required, options}
   
   submissions     Submission[]
   
@@ -63,6 +72,8 @@ model Submission {
   
   // Additional Metadata
   metadata    Json?
+  answers     Json?   // For custom questions
+  files       Json?   // Array of {url, name, type, size, fieldId, label}
   
   createdAt   DateTime @default(now())
 }

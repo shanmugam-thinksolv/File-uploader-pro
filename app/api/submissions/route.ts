@@ -20,7 +20,7 @@ export async function GET(req: NextRequest) {
                 }
             },
             orderBy: {
-                submittedAt: 'desc'
+                createdAt: 'desc'
             }
         })
 

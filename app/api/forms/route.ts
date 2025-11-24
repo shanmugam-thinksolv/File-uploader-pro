@@ -6,13 +6,56 @@ const prisma = new PrismaClient();
 export async function POST(request: Request) {
     try {
         const body = await request.json();
-        const { title, description } = body;
+        const {
+            title,
+            description,
+            allowedTypes,
+            maxSizeMB,
+            driveEnabled,
+            isAcceptingResponses,
+            expiryDate,
+            enableMetadataSpreadsheet,
+            subfolderOrganization,
+            customSubfolderField,
+            enableSmartGrouping,
+            logoUrl,
+            primaryColor,
+            backgroundColor,
+            fontFamily,
+            accessLevel,
+            allowedEmails,
+            buttonTextColor,
+            cardStyle,
+            borderRadius,
+            coverImageUrl
+        } = body;
 
         const form = await prisma.form.create({
             data: {
                 title: title || 'Untitled Form',
                 description: description || '',
-            },
+                allowedTypes,
+                maxSizeMB,
+                driveEnabled,
+                isAcceptingResponses,
+                expiryDate,
+                enableMetadataSpreadsheet,
+                subfolderOrganization,
+                customSubfolderField,
+                enableSmartGrouping,
+                logoUrl,
+                primaryColor,
+                backgroundColor,
+                fontFamily,
+                accessLevel,
+                allowedEmails,
+                buttonTextColor,
+                cardStyle,
+                borderRadius,
+                coverImageUrl,
+                uploadFields: undefined, // Explicitly set to undefined if not present to avoid type issues
+                customQuestions: undefined
+            } as any,
         });
 
         return NextResponse.json(form, { status: 201 });

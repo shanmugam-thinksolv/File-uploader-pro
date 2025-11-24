@@ -1,0 +1,8 @@
+-- Add missing columns to Form table
+ALTER TABLE "Form" ADD COLUMN IF NOT EXISTS "buttonTextColor" TEXT DEFAULT '#ffffff';
+ALTER TABLE "Form" ADD COLUMN IF NOT EXISTS "cardStyle" TEXT DEFAULT 'shadow';
+ALTER TABLE "Form" ADD COLUMN IF NOT EXISTS "borderRadius" TEXT DEFAULT 'md';
+ALTER TABLE "Form" ADD COLUMN IF NOT EXISTS "coverImageUrl" TEXT;
+ALTER TABLE "Form" ADD COLUMN IF NOT EXISTS "driveEnabled" BOOLEAN DEFAULT false;
+ALTER TABLE "Form" ADD COLUMN IF NOT EXISTS "uploadFields" JSONB;
+ALTER TABLE "Form" ADD COLUMN IF NOT EXISTS "customQuestions" JSONB;
