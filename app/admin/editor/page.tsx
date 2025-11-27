@@ -305,24 +305,60 @@ function EditorContent() {
 
                 <div className="relative">
                     <div className="space-y-6">
-                        {/* Wizard Progress */}
-                        <div className="mb-8">
-                            <div className="flex items-center justify-between mb-2 relative">
-                                {['General', 'Uploads', 'Organization', 'Access', 'Design'].map((step, index) => (
-                                    <div key={step} className={`flex flex-col items-center relative z-10 ${index <= currentStep ? 'text-indigo-600' : 'text-gray-400'}`}>
-                                        <div
-                                            className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold border-2 transition-all duration-300 cursor-pointer ${index <= currentStep ? 'bg-indigo-600 border-indigo-600 text-white' : 'bg-white border-gray-300'}`}
-                                            onClick={() => setCurrentStep(index)}
+                        {/* Professional Tab Navigation */}
+                        <div className="mb-8 border-b border-gray-200">
+                            <nav className=" flex -mb-px space-x-8" aria-label="Tabs">
+                                {[
+                                    { name: 'General', step: 0 },
+                                    { name: 'Uploads', step: 1 },
+                                    { name: 'Organization', step: 2 },
+                                    { name: 'Access', step: 3 },
+                                    { name: 'Design', step: 4 }
+                                ].map((tab) => {
+                                    const isActive = currentStep === tab.step;
+                                    const isCompleted = currentStep > tab.step;
+
+                                    return (
+                                        <button
+                                            key={tab.name}
+                                            onClick={() => setCurrentStep(tab.step)}
+                                            className={`
+                                                group relative inline-flex items-center gap-2 py-4 px-1 
+                                                border-b-2 font-medium text-sm transition-all duration-200
+                                                ${isActive
+                                                    ? 'border-gray-900 text-gray-900'
+                                                    : isCompleted
+                                                        ? 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                                                        : 'border-transparent text-gray-400 hover:text-gray-500 hover:border-gray-200'
+                                                }
+                                            `}
                                         >
-                                            {index + 1}
-                                        </div>
-                                        <span className="text-xs mt-1 font-medium hidden sm:block">{step}</span>
-                                    </div>
-                                ))}
-                                {/* Progress Bar Background */}
-                                <div className="absolute top-4 left-0 w-full h-0.5 bg-gray-200 -z-0" style={{ top: '1rem' }}></div>
-                                {/* Active Progress Bar - Simplified for now */}
-                            </div>
+                                            {/* Step number/checkmark */}
+                                            <span
+                                                className={`
+                                                    flex items-center justify-center w-5 h-5 rounded-full text-xs font-semibold
+                                                    transition-colors duration-200
+                                                    ${isActive
+                                                        ? 'bg-gray-900 text-white'
+                                                        : isCompleted
+                                                            ? 'bg-gray-100 text-gray-600'
+                                                            : 'bg-gray-100 text-gray-400 group-hover:bg-gray-200'
+                                                    }
+                                                `}
+                                            >
+                                                {isCompleted ? (
+                                                    <Check className="w-3 h-3" />
+                                                ) : (
+                                                    tab.step + 1
+                                                )}
+                                            </span>
+
+                                            {/* Tab label */}
+                                            <span>{tab.name}</span>
+                                        </button>
+                                    );
+                                })}
+                            </nav>
                         </div>
 
                         {/* Step 0: General Information */}
@@ -617,8 +653,8 @@ function EditorContent() {
                                                                 size="sm"
                                                                 type="button"
                                                                 className={`h-7 text-xs transition-all ${isSelected
-                                                                        ? "bg-indigo-100 text-indigo-900 border-indigo-300 hover:bg-indigo-200"
-                                                                        : "bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100 hover:text-gray-900"
+                                                                    ? "bg-indigo-100 text-indigo-900 border-indigo-300 hover:bg-indigo-200"
+                                                                    : "bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100 hover:text-gray-900"
                                                                     }`}
                                                                 onClick={() => {
                                                                     let newVal;

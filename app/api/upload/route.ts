@@ -1,9 +1,8 @@
+
 import { NextResponse } from 'next/server';
 import { getDriveClient } from '@/lib/google-drive';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '@/lib/prisma';
 import { Readable } from 'stream';
-
-const prisma = new PrismaClient();
 
 export async function POST(request: Request) {
     try {

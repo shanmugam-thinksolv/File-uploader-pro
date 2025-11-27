@@ -13,10 +13,11 @@ export const authOptions: NextAuthOptions = {
             clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
             authorization: {
                 params: {
-                    prompt: "consent",
                     access_type: "offline",
                     response_type: "code",
-                    scope: "openid email profile https://www.googleapis.com/auth/drive.file"
+                    scope: "openid email profile https://www.googleapis.com/auth/drive.file",
+                    // Default to select_account, but can be overridden
+                    prompt: "select_account"
                 }
             }
         }),
@@ -42,11 +43,25 @@ export const authOptions: NextAuthOptions = {
             return token
         },
         async redirect({ url, baseUrl }) {
-            // Allows relative callback URLs
+            // If url starts with "/", it's a relative callback URL
             if (url.startsWith("/")) return `${baseUrl}${url}`
-            // Allows callback URLs on the same origin
-            if (new URL(url).origin === baseUrl) return url
-            return baseUrl
+
+            // If url has the same origin as baseUrl, extract the path
+            if (new URL(url).origin === baseUrl) {
+                const urlPath = new URL(url).pathname
+                const searchParams = new URL(url).searchParams
+                const callbackUrl = searchParams.get('callbackUrl')
+
+                // If there's a callbackUrl in the query params, use it
+                if (callbackUrl && callbackUrl.startsWith('/')) {
+                    return `${baseUrl}${callbackUrl}`
+                }
+
+                return url
+            }
+
+            // Default to dashboard for authenticated users instead of home page
+            return `${baseUrl}/admin/dashboard`
         },
     },
     pages: {

@@ -1,9 +1,7 @@
 import { NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '@/lib/prisma';
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-
-const prisma = new PrismaClient();
 
 export async function POST(request: Request) {
     try {
@@ -73,15 +71,16 @@ export async function POST(request: Request) {
                 coverImageUrl,
                 uploadFields: uploadFields ? JSON.stringify(uploadFields) : JSON.stringify([]),
                 customQuestions: customQuestions ? JSON.stringify(customQuestions) : JSON.stringify([]),
-                userId: session.user.id // Link to user
-            } as any,
+                userId: session.user.id
+            },
         });
 
         return NextResponse.json(form, { status: 201 });
     } catch (error) {
         console.error('Error creating form:', error);
+        console.error('Error details:', error instanceof Error ? error.message : 'Unknown error');
         return NextResponse.json(
-            { error: 'Failed to create form' },
+            { error: 'Failed to create form', details: error instanceof Error ? error.message : 'Unknown error' },
             { status: 500 }
         );
     }

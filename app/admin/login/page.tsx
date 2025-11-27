@@ -50,11 +50,32 @@ export default function AdminLoginPage() {
     const handleGoogleSignIn = async () => {
         setIsLoading(true)
         try {
-            // For OAuth providers, let NextAuth handle the redirect
-            // redirect: false doesn't work properly with OAuth flows
-            await signIn("google", {
-                callbackUrl: "/admin/dashboard"
-            })
+            const signInOptions: any = {
+                callbackUrl: "/admin/dashboard",
+            }
+
+            if (mode === "signup") {
+                // For sign-up: Force consent to get Google Drive permissions
+                // We pass this via the authorization parameter which overrides the provider default
+                signInOptions.authorization = {
+                    params: {
+                        prompt: "consent",
+                        access_type: "offline",
+                        response_type: "code"
+                    }
+                }
+            } else {
+                // For sign-in: Use select_account prompt (quick login)
+                signInOptions.authorization = {
+                    params: {
+                        prompt: "select_account",
+                        access_type: "offline",
+                        response_type: "code"
+                    }
+                }
+            }
+
+            await signIn("google", signInOptions)
         } catch (error) {
             console.error("Google sign-in exception:", error)
             setIsLoading(false)
