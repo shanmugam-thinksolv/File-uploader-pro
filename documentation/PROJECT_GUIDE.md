@@ -16,7 +16,7 @@
 ### Technology Stack
 - **Frontend**: Next.js 16 (React 19) with TypeScript
 - **Backend**: Next.js API Routes (serverless functions)
-- **Database**: SQLite with Prisma ORM
+- **Database**: Supabase PostgreSQL with Prisma ORM
 - **Authentication**: NextAuth.js with Google OAuth
 - **Storage**: Google Drive API
 - **UI**: Tailwind CSS + Radix UI + Framer Motion
@@ -25,7 +25,7 @@
 ```
 User → Landing Page → Login (Google OAuth) → Dashboard → Form Editor
                                                 ↓
-                                          Save to SQLite
+                                          Save to Supabase
                                                 ↓
                                     Publish Form → Share Link
                                                 ↓
@@ -47,7 +47,7 @@ User → Landing Page → Login (Google OAuth) → Dashboard → Form Editor
 ### 2. Token Management
 - **Access Token**: Short-lived, used for API calls
 - **Refresh Token**: Long-lived, stored in database for token renewal
-- Tokens are stored in the `Account` table in SQLite
+- Tokens are stored in the `Account` table in Supabase PostgreSQL
 - Custom callback in `lib/auth.ts` ensures refresh tokens are preserved
 
 ### 3. Protected Routes

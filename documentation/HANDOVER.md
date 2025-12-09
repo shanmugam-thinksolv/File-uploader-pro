@@ -6,7 +6,7 @@
 ### Key Technologies
 - **Framework**: Next.js 16 (App Router)
 - **Language**: TypeScript
-- **Database**: SQLite (via Prisma ORM)
+- **Database**: Supabase PostgreSQL (via Prisma ORM)
 - **Authentication**: NextAuth.js (Google Provider)
 - **Styling**: Tailwind CSS v4
 - **UI Components**: Radix UI, Lucide React, Framer Motion
@@ -53,17 +53,40 @@ NEXTAUTH_URL=http://localhost:3000
 # Generate a secret by running: node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 NEXTAUTH_SECRET=your_generated_secret_here
 
-# Database Configuration
-DATABASE_URL="file:./dev.db"
+# Database Configuration - Supabase PostgreSQL
+# Get these from: Supabase Dashboard > Project Settings > Database > Connection String
+# Use "Transaction" mode (port 6543) for DATABASE_URL
+# Use "Session" mode (port 5432) for DIRECT_URL
+DATABASE_URL="postgresql://postgres.[PROJECT-REF]:[YOUR-PASSWORD]@aws-0-[REGION].pooler.supabase.com:6543/postgres?pgbouncer=true"
+DIRECT_URL="postgresql://postgres.[PROJECT-REF]:[YOUR-PASSWORD]@aws-0-[REGION].pooler.supabase.com:5432/postgres"
 ```
 
+**Important:** See [SUPABASE_MIGRATION.md](./SUPABASE_MIGRATION.md) for detailed Supabase setup instructions.
+
 ### Step 4: Database Setup
-Initialize the SQLite database:
+
+**Option A - Automated Setup (Windows):**
+```bash
+development-scripts\setup-supabase.bat
+```
+
+**Option B - Manual Setup:**
+```bash
+npm run db:setup
+```
+
+Or step by step:
 ```bash
 npx prisma generate
 npx prisma db push
 ```
-*Note: This creates a local `dev.db` file in the `prisma` folder.*
+
+**Verify Connection:**
+```bash
+npm run db:test
+```
+
+*Note: This creates tables in your Supabase PostgreSQL database.*
 
 ---
 
@@ -91,7 +114,7 @@ npm start
   - **`admin/`**: Admin dashboard and editor pages.
 - **`components/`**: Reusable UI components.
 - **`lib/`**: Utility functions and configurations (Auth, Prisma, Drive).
-- **`prisma/`**: Database schema and SQLite file.
+- **`prisma/`**: Database schema for Supabase PostgreSQL.
 - **`development-scripts/`**: Helper scripts for maintenance.
   - `check-env.js`: Verifies environment variables.
   - `fix-prisma.bat`: Fixes common Prisma client issues.
@@ -102,9 +125,18 @@ npm start
 
 ### Database Errors
 If you encounter errors related to Prisma or the database:
-1. Run `npx prisma generate` to refresh the client.
-2. If the schema changed, run `npx prisma db push`.
-3. Use the helper script: `development-scripts/fix-prisma.bat` (Windows).
+1. Verify your Supabase connection strings in `.env` are correct
+2. Check your Supabase project is active (not paused)
+3. Run `npx prisma generate` to refresh the client
+4. If the schema changed, run `npx prisma db push`
+5. Use the helper script: `development-scripts/fix-prisma.bat` (Windows)
+6. Test connection: `npm run db:test`
+
+**Common Supabase Issues:**
+- **Can't reach database**: Check DATABASE_URL and DIRECT_URL
+- **Authentication failed**: Verify your database password
+- **Special characters in password**: URL-encode them (e.g., @ → %40)
+- **Project paused**: Free tier Supabase projects pause after inactivity
 
 ### Google Authentication Issues
 - Ensure `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` are correct.
@@ -120,7 +152,11 @@ If you encounter errors related to Prisma or the database:
 
 ## 7. Maintenance
 - **Updating Dependencies**: Run `npm update` to update packages.
-- **Database Backups**: The database is a single file (`prisma/dev.db`). Back up this file regularly.
+- **Database Backups**: 
+  - Supabase Pro plan includes automatic daily backups
+  - Free tier: Use Supabase Dashboard > Database > Backups
+  - Or export via: `pg_dump` or Supabase CLI
+- **Monitoring**: Check Supabase Dashboard for database health and usage
 
 ---
 *Documentation generated on 2025-12-04*

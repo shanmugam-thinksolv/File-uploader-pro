@@ -6,7 +6,14 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "prisma:generate": "prisma generate",
+    "prisma:push": "prisma db push",
+    "prisma:studio": "prisma studio",
+    "prisma:clean": "rm -rf node_modules/.prisma && prisma generate",
+    "db:setup": "prisma generate && prisma db push",
+    "db:reset": "prisma db push --force-reset",
+    "db:test": "tsx development-scripts/test-db.ts"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.11.1",

@@ -13,9 +13,12 @@ This project is a Next.js application for creating and managing forms with file 
 
 ## Quick Start
 1. **Install Dependencies**: `npm install`
-2. **Setup Environment**: Copy `documentation/env.example` to `.env` and fill in credentials.
-3. **Setup Database**: `npx prisma generate` && `npx prisma db push`
+2. **Setup Environment**: Copy `documentation/env.example` to `.env` and fill in credentials (including Supabase connection strings).
+3. **Setup Database**: `npm run db:setup` (or run `development-scripts/setup-supabase.bat` on Windows)
 4. **Run**: `npm run dev`
+
+## Database
+This application uses **Supabase (PostgreSQL)** for data storage. See [SUPABASE_MIGRATION.md](./documentation/SUPABASE_MIGRATION.md) for setup instructions.
 
 ---
 *Original Next.js README content below:*

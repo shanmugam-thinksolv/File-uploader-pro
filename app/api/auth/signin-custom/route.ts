@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
         client_id: clientId,
         redirect_uri: redirectUri,
         response_type: 'code',
-        scope: 'openid email profile https://www.googleapis.com/auth/drive.file',
+        scope: 'openid email profile https://www.googleapis.com/auth/drive',
         access_type: 'offline',
         // Use consent for signup, select_account for signin
         prompt: mode === 'signup' ? 'consent' : 'select_account',

@@ -1,9 +1,7 @@
 import { NextAuthOptions } from "next-auth"
 import GoogleProvider from "next-auth/providers/google"
 import { PrismaAdapter } from "@auth/prisma-adapter"
-import { PrismaClient } from "@prisma/client"
-
-const prisma = new PrismaClient()
+import { prisma } from "@/lib/prisma"
 
 export const authOptions: NextAuthOptions = {
     adapter: PrismaAdapter(prisma) as any,
@@ -15,7 +13,8 @@ export const authOptions: NextAuthOptions = {
                 params: {
                     access_type: "offline",
                     response_type: "code",
-                    scope: "openid email profile https://www.googleapis.com/auth/drive.file",
+                    // Changed from drive.file to drive to allow Picker to list all folders
+                    scope: "openid email profile https://www.googleapis.com/auth/drive",
                     // Default to select_account, but can be overridden
                     prompt: "consent"
                 }

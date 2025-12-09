@@ -1,6 +1,7 @@
 @echo off
 pushd "%~dp0.."
-set "DATABASE_URL=file:./prisma/dev.db"
-npx prisma db push
+REM DATABASE_URL should be set in .env file (for PostgreSQL/Supabase)
+REM No need to override it here anymore
 npx prisma generate
+npx prisma db push
 popd

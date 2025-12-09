@@ -2,6 +2,7 @@
 pushd "%~dp0.."
 echo ============================================
 echo Prisma Client Regeneration Script
+echo (PostgreSQL/Supabase Compatible)
 echo ============================================
 echo.
 echo This script will:
