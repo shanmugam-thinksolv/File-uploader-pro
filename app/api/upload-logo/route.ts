@@ -24,14 +24,7 @@ export async function POST(req: NextRequest) {
             )
         }
 
-        // Validate file size (2MB limit)
-        const maxSize = 2 * 1024 * 1024 // 2MB
-        if (file.size > maxSize) {
-            return NextResponse.json(
-                { error: 'File too large. Maximum size is 2MB' },
-                { status: 400 }
-            )
-        }
+        // No file size limit - users can upload any size
 
         // Create logos directory if it doesn't exist
         const logosDir = path.join(process.cwd(), 'public', 'logos')

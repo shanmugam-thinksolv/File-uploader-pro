@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { Loader2, UploadCloud, CheckCircle, Lock, RefreshCcw, X } from "lucide-react"
+import { Loader2, UploadCloud, CheckCircle, Lock, RefreshCcw, X, File, AlertCircle, Trash2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 // Types
@@ -17,7 +17,6 @@ interface UploadField {
     id: string
     label: string
     allowedTypes: string[]
-    maxSize: number
     required?: boolean
 }
 
@@ -36,7 +35,6 @@ interface FormConfig {
     backgroundColor: string
     fontFamily: string
     allowedTypes: string
-    maxSizeMB: number
     isPasswordProtected: boolean
     password?: string
     enableSubmitAnother: boolean
@@ -50,75 +48,196 @@ interface FormConfig {
     borderRadius?: string
 }
 
-// Helper Component for Single File Dropzone
+// Helper Component for Multiple File Dropzone
 const FileDropzone = ({
     fieldId,
     label,
     accept,
-    maxSize,
-    file,
+    files,
     onDrop,
     onRemove,
-    primaryColor
+    primaryColor,
+    errors,
+    uploadProgress,
+    uploading
 }: {
     fieldId: string
     label: string
     accept?: any
-    maxSize?: number
-    file: File | null
-    onDrop: (file: File) => void
-    onRemove: () => void
+    files: File[]
+    onDrop: (files: File[]) => void
+    onRemove: (index: number) => void
     primaryColor: string
+    errors?: Record<number, string>
+    uploadProgress?: Record<number, number>
+    uploading?: boolean
 }) => {
-    const { getRootProps, getInputProps, isDragActive } = useDropzone({
+    const { getRootProps, getInputProps, isDragActive, fileRejections } = useDropzone({
         onDrop: (acceptedFiles) => {
-            if (acceptedFiles.length > 0) onDrop(acceptedFiles[0])
+            if (acceptedFiles.length > 0) {
+                onDrop(acceptedFiles)
+            }
         },
-        maxFiles: 1,
-        accept,
-        maxSize
+        accept
+        // No maxSize limit - users can upload any size
+        // No maxFiles limit - users can upload multiple files
     })
 
+    const formatFileSize = (bytes: number): string => {
+        if (bytes === 0) return '0 Bytes'
+        const k = 1024
+        const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB']
+        const i = Math.floor(Math.log(bytes) / Math.log(k))
+        return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i]
+    }
+
+    const getFileIcon = (file: File) => {
+        const type = file.type.split('/')[0]
+        if (type === 'image') return '🖼️'
+        if (type === 'video') return '🎥'
+        if (type === 'audio') return '🎵'
+        if (file.type.includes('pdf')) return '📄'
+        if (file.type.includes('word')) return '📝'
+        if (file.type.includes('excel') || file.type.includes('spreadsheet')) return '📊'
+        return '📎'
+    }
+
     return (
-        <div className="space-y-2">
+        <div className="space-y-3">
             <Label className="text-base font-medium">{label}</Label>
+            
+            {/* Dropzone */}
             <div
                 {...getRootProps()}
                 className={cn(
-                    "border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors hover:bg-muted/50 relative",
-                    isDragActive ? "border-primary bg-primary/5" : "border-muted-foreground/25",
-                    file ? "bg-green-50 border-green-200" : ""
+                    "border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors hover:bg-muted/50",
+                    isDragActive ? "border-primary bg-primary/5" : "border-muted-foreground/25"
                 )}
                 style={isDragActive ? { borderColor: primaryColor } : {}}
             >
                 <input {...getInputProps()} />
-                {file ? (
-                    <div className="flex flex-col items-center gap-2 text-green-700">
-                        <CheckCircle className="w-8 h-8" />
-                        <p className="font-medium truncate max-w-full px-4">{file.name}</p>
-                        <p className="text-xs text-green-600">{(file.size / 1024 / 1024).toFixed(2)} MB</p>
-                        <Button
-                            variant="ghost"
-                            size="sm"
-                            className="absolute top-2 right-2 h-6 w-6 p-0 text-green-600 hover:text-green-800 hover:bg-green-100"
-                            onClick={(e) => {
-                                e.stopPropagation()
-                                onRemove()
-                            }}
-                        >
-                            <X className="w-4 h-4" />
-                        </Button>
+                <div className="flex flex-col items-center gap-2 text-muted-foreground">
+                    <UploadCloud className="w-8 h-8" />
+                    <p className="font-medium">Drag & drop files or click to select</p>
+                    <p className="text-xs text-gray-400">You can upload multiple files</p>
+                </div>
+            </div>
+
+            {/* File Rejection Errors */}
+            {fileRejections.length > 0 && (
+                <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+                    <div className="flex items-start gap-2">
+                        <AlertCircle className="w-4 h-4 text-red-600 mt-0.5 flex-shrink-0" />
+                        <div className="flex-1">
+                            <p className="text-sm font-medium text-red-800">Some files were rejected:</p>
+                            <ul className="mt-1 text-xs text-red-700 list-disc list-inside">
+                                {fileRejections.map(({ file, errors }, idx) => (
+                                    <li key={idx}>
+                                        {file.name}: {errors.map(e => e.message).join(', ')}
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
                     </div>
-                ) : (
-                    <div className="flex flex-col items-center gap-2 text-muted-foreground">
-                        <UploadCloud className="w-8 h-8" />
-                        <p className="font-medium">Drag & drop or click to select</p>
-                        <p className="text-xs text-gray-400">
-                            Max size: {maxSize ? (maxSize / 1024 / 1024).toFixed(0) : 5}MB
+                </div>
+            )}
+
+            {/* File List */}
+            {files.length > 0 && (
+                <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                        <p className="text-sm font-medium text-gray-700">
+                            {files.length} {files.length === 1 ? 'file' : 'files'} selected
                         </p>
                     </div>
-                )}
-            </div>
+                    <div className="space-y-2 max-h-64 overflow-y-auto">
+                        {files.map((file, index) => {
+                            const progress = uploadProgress?.[index]
+                            const isUploading = uploading && progress !== undefined && progress < 100
+                            const isComplete = progress === 100
+                            const hasError = !!errors?.[index]
+                            
+                            return (
+                                <div
+                                    key={`${file.name}-${index}`}
+                                    className={cn(
+                                        "flex items-center gap-3 p-3 rounded-lg border transition-colors",
+                                        hasError
+                                            ? "bg-red-50 border-red-200"
+                                            : isComplete
+                                            ? "bg-green-50 border-green-200"
+                                            : isUploading
+                                            ? "bg-blue-50 border-blue-200"
+                                            : "bg-gray-50 border-gray-200"
+                                    )}
+                                >
+                                    <div className="flex-shrink-0 text-2xl">{getFileIcon(file)}</div>
+                                    <div className="flex-1 min-w-0">
+                                        <div className="flex items-center gap-2">
+                                            <p className={cn(
+                                                "text-sm font-medium truncate",
+                                                hasError ? "text-red-800" : isComplete ? "text-green-800" : "text-gray-800"
+                                            )}>
+                                                {file.name}
+                                            </p>
+                                            {isUploading && (
+                                                <Loader2 className="w-3 h-3 animate-spin text-blue-600 flex-shrink-0" />
+                                            )}
+                                            {isComplete && !hasError && (
+                                                <CheckCircle className="w-3 h-3 text-green-600 flex-shrink-0" />
+                                            )}
+                                        </div>
+                                        <p className={cn(
+                                            "text-xs mt-0.5",
+                                            hasError ? "text-red-600" : isComplete ? "text-green-600" : "text-gray-600"
+                                        )}>
+                                            {formatFileSize(file.size)}
+                                        </p>
+                                        {isUploading && progress !== undefined && (
+                                            <div className="mt-2">
+                                                <div className="w-full bg-gray-200 rounded-full h-1.5">
+                                                    <div
+                                                        className="bg-blue-600 h-1.5 rounded-full transition-all duration-300"
+                                                        style={{ width: `${progress}%` }}
+                                                    />
+                                                </div>
+                                                <p className="text-xs text-blue-600 mt-1">{progress}% uploaded</p>
+                                            </div>
+                                        )}
+                                        {hasError && (
+                                            <p className="text-xs text-red-600 mt-1 flex items-center gap-1">
+                                                <AlertCircle className="w-3 h-3" />
+                                                {errors[index]}
+                                            </p>
+                                        )}
+                                    </div>
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className={cn(
+                                            "h-8 w-8 p-0 flex-shrink-0",
+                                            hasError
+                                                ? "text-red-600 hover:text-red-800 hover:bg-red-100"
+                                                : isComplete
+                                                ? "text-green-600 hover:text-green-800 hover:bg-green-100"
+                                                : "text-gray-600 hover:text-gray-800 hover:bg-gray-100"
+                                        )}
+                                        onClick={(e) => {
+                                            e.stopPropagation()
+                                            if (!isUploading) {
+                                                onRemove(index)
+                                            }
+                                        }}
+                                        disabled={isUploading}
+                                    >
+                                        <Trash2 className="w-4 h-4" />
+                                    </Button>
+                                </div>
+                            )
+                        })}
+                    </div>
+                </div>
+            )}
         </div>
     )
 }
@@ -134,9 +253,11 @@ export default function UploadForm({ isPreview = false, formId, initialData }: {
     const [authError, setAuthError] = useState("")
 
     // Form State
-    const [files, setFiles] = useState<Record<string, File | null>>({})
+    const [files, setFiles] = useState<Record<string, File[]>>({})
+    const [fileErrors, setFileErrors] = useState<Record<string, Record<number, string>>>({})
     const [answers, setAnswers] = useState<Record<string, any>>({})
     const [uploading, setUploading] = useState(false)
+    const [uploadProgress, setUploadProgress] = useState<Record<string, Record<number, number>>>({})
 
     // Success State
     const [referenceId, setReferenceId] = useState("")
@@ -158,13 +279,12 @@ export default function UploadForm({ isPreview = false, formId, initialData }: {
                 backgroundColor: "#ffffff",
                 fontFamily: "Inter",
                 allowedTypes: "any",
-                maxSizeMB: 5,
                 isPasswordProtected: false,
                 enableSubmitAnother: true,
                 isAcceptingResponses: true,
                 logoUrl: "",
                 uploadFields: [
-                    { id: "default", label: "Upload File", allowedTypes: [], maxSize: 5 * 1024 * 1024 }
+                    { id: "default", label: "Upload File", allowedTypes: [] }
                 ]
             })
             setLoading(false)
@@ -198,8 +318,7 @@ export default function UploadForm({ isPreview = false, formId, initialData }: {
                         parsedData.uploadFields = [{
                             id: "default",
                             label: "Upload File",
-                            allowedTypes: parsedData.allowedTypes ? parsedData.allowedTypes.split(',') : [],
-                            maxSize: parsedData.maxSizeMB * 1024 * 1024
+                            allowedTypes: parsedData.allowedTypes ? parsedData.allowedTypes.split(',') : []
                         }]
                     }
 
@@ -226,15 +345,73 @@ export default function UploadForm({ isPreview = false, formId, initialData }: {
         }
     }
 
-    const handleFileDrop = (fieldId: string, file: File) => {
-        setFiles(prev => ({ ...prev, [fieldId]: file }))
-    }
-
-    const handleFileRemove = (fieldId: string) => {
+    const handleFileDrop = (fieldId: string, newFiles: File[]) => {
         setFiles(prev => {
+            const existingFiles = prev[fieldId] || []
+            // Add new files, avoiding duplicates by name and size
+            const uniqueFiles = [...existingFiles]
+            newFiles.forEach(newFile => {
+                const isDuplicate = existingFiles.some(
+                    f => f.name === newFile.name && f.size === newFile.size
+                )
+                if (!isDuplicate) {
+                    uniqueFiles.push(newFile)
+                }
+            })
+            return { ...prev, [fieldId]: uniqueFiles }
+        })
+        // Clear errors for this field when new files are added
+        setFileErrors(prev => {
             const next = { ...prev }
             delete next[fieldId]
             return next
+        })
+    }
+
+    const handleFileRemove = (fieldId: string, index: number) => {
+        setFiles(prev => {
+            const fieldFiles = prev[fieldId] || []
+            const updatedFiles = fieldFiles.filter((_, i) => i !== index)
+            if (updatedFiles.length === 0) {
+                const next = { ...prev }
+                delete next[fieldId]
+                return next
+            }
+            return { ...prev, [fieldId]: updatedFiles }
+        })
+        // Remove error for this file
+        setFileErrors(prev => {
+            const fieldErrors = prev[fieldId] || {}
+            const updatedErrors = { ...fieldErrors }
+            delete updatedErrors[index]
+            // Reindex remaining errors
+            const reindexed: Record<number, string> = {}
+            Object.keys(updatedErrors).forEach((key, newIdx) => {
+                const oldIdx = parseInt(key)
+                if (oldIdx > index) {
+                    reindexed[oldIdx - 1] = updatedErrors[oldIdx]
+                } else if (oldIdx < index) {
+                    reindexed[oldIdx] = updatedErrors[oldIdx]
+                }
+            })
+            if (Object.keys(reindexed).length === 0) {
+                const next = { ...prev }
+                delete next[fieldId]
+                return next
+            }
+            return { ...prev, [fieldId]: reindexed }
+        })
+        // Remove upload progress for this file
+        setUploadProgress(prev => {
+            const fieldProgress = prev[fieldId] || {}
+            const updatedProgress = { ...fieldProgress }
+            delete updatedProgress[index]
+            if (Object.keys(updatedProgress).length === 0) {
+                const next = { ...prev }
+                delete next[fieldId]
+                return next
+            }
+            return { ...prev, [fieldId]: updatedProgress }
         })
     }
 
@@ -247,45 +424,113 @@ export default function UploadForm({ isPreview = false, formId, initialData }: {
         if (!formId || !config) return
 
         // Validate required files
-        const missingFiles = config.uploadFields?.filter(f => f.required !== false && !files[f.id])
+        const missingFiles = config.uploadFields?.filter(f => {
+            const fieldFiles = files[f.id] || []
+            return f.required !== false && fieldFiles.length === 0
+        })
 
         if (missingFiles && missingFiles.length > 0) {
-            setError(`Please upload the following required files: ${missingFiles.map(f => f.label).join(", ")}`)
+            setError(`Please upload at least one file for: ${missingFiles.map(f => f.label).join(", ")}`)
             window.scrollTo({ top: 0, behavior: 'smooth' })
             return
         }
 
         setError("")
         setUploading(true)
+        setFileErrors({})
+        setUploadProgress({})
 
         try {
             const uploadedFiles = []
+            const errors: Record<string, Record<number, string>> = {}
 
-            // Upload each file
+            // Upload each file for each field
             for (const field of config.uploadFields || []) {
-                const file = files[field.id]
-                if (file) {
-                    const formData = new FormData()
-                    formData.append('file', file)
-                    if (formId) formData.append('formId', formId)
+                const fieldFiles = files[field.id] || []
+                
+                for (let index = 0; index < fieldFiles.length; index++) {
+                    const file = fieldFiles[index]
+                    
+                    try {
+                        // Update progress
+                        setUploadProgress(prev => ({
+                            ...prev,
+                            [field.id]: {
+                                ...(prev[field.id] || {}),
+                                [index]: 0
+                            }
+                        }))
 
-                    const uploadRes = await fetch('/api/upload', {
-                        method: 'POST',
-                        body: formData
-                    })
+                        const formData = new FormData()
+                        formData.append('file', file)
+                        if (formId) formData.append('formId', formId)
 
-                    if (!uploadRes.ok) {
-                        const errorData = await uploadRes.json()
-                        throw new Error(errorData.details || errorData.error || `Upload failed for ${field.label}`)
+                        const uploadRes = await fetch('/api/upload', {
+                            method: 'POST',
+                            body: formData
+                        })
+
+                        if (!uploadRes.ok) {
+                            const errorData = await uploadRes.json()
+                            const errorMsg = errorData.details || errorData.error || `Upload failed for ${file.name}`
+                            
+                            // Store error for this specific file
+                            if (!errors[field.id]) errors[field.id] = {}
+                            errors[field.id][index] = errorMsg
+                            
+                            // Continue with other files instead of throwing
+                            continue
+                        }
+                        
+                        const uploadData = await uploadRes.json()
+
+                        uploadedFiles.push({
+                            ...uploadData,
+                            fieldId: field.id,
+                            label: field.label,
+                            fileName: file.name,
+                            fileSize: file.size,
+                            fileType: file.type
+                        })
+
+                        // Update progress to 100%
+                        setUploadProgress(prev => ({
+                            ...prev,
+                            [field.id]: {
+                                ...(prev[field.id] || {}),
+                                [index]: 100
+                            }
+                        }))
+                    } catch (fileError: any) {
+                        // Store error for this specific file
+                        if (!errors[field.id]) errors[field.id] = {}
+                        errors[field.id][index] = fileError.message || 'Upload failed'
                     }
-                    const uploadData = await uploadRes.json()
-
-                    uploadedFiles.push({
-                        ...uploadData,
-                        fieldId: field.id,
-                        label: field.label
-                    })
                 }
+            }
+
+            // If there are errors, show them but don't fail completely
+            if (Object.keys(errors).length > 0) {
+                setFileErrors(errors)
+                const errorCount = Object.values(errors).reduce((sum, fieldErrors) => sum + Object.keys(fieldErrors).length, 0)
+                if (uploadedFiles.length === 0) {
+                    // All files failed
+                    setError(`${errorCount} file(s) failed to upload. Please check the errors below and try again.`)
+                    setUploading(false)
+                    window.scrollTo({ top: 0, behavior: 'smooth' })
+                    return
+                } else {
+                    // Some files succeeded
+                    setError(`Warning: ${errorCount} file(s) failed to upload, but ${uploadedFiles.length} file(s) were uploaded successfully.`)
+                }
+            }
+
+            // Check if we have any files to submit
+            if (uploadedFiles.length === 0) {
+                setError('No files were uploaded successfully. Please try again.')
+                setUploading(false)
+                window.scrollTo({ top: 0, behavior: 'smooth' })
+                return
             }
 
             // Submit Form Data
@@ -322,8 +567,11 @@ export default function UploadForm({ isPreview = false, formId, initialData }: {
 
     const resetForm = () => {
         setFiles({})
+        setFileErrors({})
+        setUploadProgress({})
         setAnswers({})
         setStep('form')
+        setError("")
     }
 
     if (loading) return <div className="flex justify-center items-center min-h-[400px]"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>
@@ -511,11 +759,13 @@ export default function UploadForm({ isPreview = false, formId, initialData }: {
                                         fieldId={field.id}
                                         label={field.label}
                                         accept={field.allowedTypes?.length ? Object.fromEntries(field.allowedTypes.map(t => [t, []])) : undefined}
-                                        maxSize={field.maxSize}
-                                        file={files[field.id] || null}
-                                        onDrop={(f) => handleFileDrop(field.id, f)}
-                                        onRemove={() => handleFileRemove(field.id)}
+                                        files={files[field.id] || []}
+                                        onDrop={(newFiles) => handleFileDrop(field.id, newFiles)}
+                                        onRemove={(index) => handleFileRemove(field.id, index)}
                                         primaryColor={primaryColor}
+                                        errors={fileErrors[field.id]}
+                                        uploadProgress={uploadProgress[field.id]}
+                                        uploading={uploading}
                                     />
                                 ))}
                             </div>

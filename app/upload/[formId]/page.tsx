@@ -42,8 +42,7 @@ export default async function UploadPage({ params }: { params: Promise<{ formId:
         uploadFields = [{
             id: "default",
             label: "Upload File",
-            allowedTypes: [],
-            maxSize: (formData.maxSizeMB || 5) * 1024 * 1024
+            allowedTypes: []
         }]
     } else {
         // Fix each upload field to ensure allowedTypes is an array
@@ -54,8 +53,8 @@ export default async function UploadPage({ params }: { params: Promise<{ formId:
                 ? field.allowedTypes
                 : (typeof field.allowedTypes === 'string' && field.allowedTypes
                     ? field.allowedTypes.split(',').filter(Boolean)
-                    : []),
-            maxSize: field.maxSize || (field.maxSizeMB ? field.maxSizeMB * 1024 * 1024 : 5 * 1024 * 1024)
+                    : [])
+            // No maxSize limit - users can upload any size
         }))
     }
 
@@ -75,7 +74,6 @@ export default async function UploadPage({ params }: { params: Promise<{ formId:
         cardStyle: formData.cardStyle || 'shadow',
         borderRadius: formData.borderRadius || 'md',
         allowedTypes: formData.allowedTypes || '',
-        maxSizeMB: formData.maxSizeMB || 5,
         isPasswordProtected: formData.isPasswordProtected || false,
         password: formData.password || null,
         enableSubmitAnother: formData.enableSubmitAnother || true,

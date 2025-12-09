@@ -5,7 +5,7 @@ let config = {
     id: "ref-123",
     name: "General Upload Form",
     description: "Please upload your project files here. Supported formats: PDF, PNG, JPG.",
-    maxSizeMB: 100,
+    // No file size limit - users can upload any size
     allowedTypes: ['image/png', 'image/jpeg', 'application/pdf'],
     isPasswordProtected: true,
     password: "password123", // Mock password

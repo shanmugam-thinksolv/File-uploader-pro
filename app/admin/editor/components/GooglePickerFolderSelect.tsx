@@ -90,13 +90,26 @@ export function GooglePickerFolderSelect({ formData, updateField }: GooglePicker
             const tokenResponse = await fetch('/api/drive/token');
             if (!tokenResponse.ok) {
                 const errorData = await tokenResponse.json().catch(() => ({}));
-                throw new Error(errorData.error || 'Failed to get access token. Please sign in with Google.');
+                
+                // If re-authentication is required, show helpful message
+                if (errorData.requiresReauth) {
+                    const message = errorData.error || 'Authentication required';
+                    alert(`${message}\n\nPlease:\n1. Sign out from your account\n2. Sign in again with Google\n3. Grant Drive permissions\n4. Try the picker again`);
+                    setIsLoading(false);
+                    return;
+                }
+                
+                throw new Error(errorData.error || errorData.details || 'Failed to get access token. Please sign in with Google.');
             }
 
-            const { accessToken } = await tokenResponse.json();
+            const { accessToken, refreshed } = await tokenResponse.json();
 
             if (!accessToken) {
-                throw new Error('No access token received. Please sign in with Google again.');
+                throw new Error('No access token received. Please sign out and sign in again with Google to grant Drive permissions.');
+            }
+
+            if (refreshed) {
+                console.log('✅ Access token refreshed successfully');
             }
 
             console.log('Opening Google Picker with API key:', apiKey.substring(0, 10) + '...');
@@ -128,7 +141,17 @@ export function GooglePickerFolderSelect({ formData, updateField }: GooglePicker
                 googleAvailable: !!window.google,
                 pickerAvailable: !!window.google?.picker
             });
-            alert(error.message || 'Failed to open folder picker. Please check the browser console for details.');
+            
+            // Provide helpful error message
+            let errorMessage = error.message || 'Failed to open folder picker.';
+            
+            if (error.message?.includes('403') || error.message?.includes('Forbidden')) {
+                errorMessage = 'Google Picker API access denied.\n\nPlease check:\n1. Google Picker API is enabled in Google Cloud Console\n2. API key has correct restrictions\n3. You are signed in with Google\n4. Try signing out and signing in again';
+            } else if (error.message?.includes('token') || error.message?.includes('auth')) {
+                errorMessage = 'Authentication error.\n\nPlease:\n1. Sign out from your account\n2. Sign in again with Google\n3. Grant Drive permissions when prompted\n4. Try the picker again';
+            }
+            
+            alert(errorMessage);
         } finally {
             setIsLoading(false);
         }

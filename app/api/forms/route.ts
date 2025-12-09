@@ -16,7 +16,6 @@ export async function POST(request: Request) {
             title,
             description,
             allowedTypes,
-            maxSizeMB,
             driveEnabled,
             isAcceptingResponses,
             expiryDate,
@@ -47,7 +46,7 @@ export async function POST(request: Request) {
                 title: title || 'Untitled Form',
                 description: description || '',
                 allowedTypes,
-                maxSizeMB,
+                maxSizeMB: 0, // No size limit - set to 0 to indicate unlimited
                 driveEnabled,
                 driveFolderId,
                 driveFolderName,

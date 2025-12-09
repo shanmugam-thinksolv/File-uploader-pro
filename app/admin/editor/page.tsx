@@ -202,7 +202,6 @@ function EditorContent() {
         title: "New Form",
         description: "",
         allowedTypes: "any",
-        maxSizeMB: 100,
         driveEnabled: true,
         driveFolderId: "",
         driveFolderUrl: "",
@@ -453,7 +452,6 @@ function EditorContent() {
             id: crypto.randomUUID(),
             label: "Upload File",
             allowedTypes: "any",
-            maxSizeMB: 10,
             required: true
         }
         updateField('uploadFields', [...formData.uploadFields, newField])

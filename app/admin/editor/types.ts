@@ -5,7 +5,6 @@ export interface EditorFormData {
 
     // Upload Config
     allowedTypes: string;
-    maxSizeMB: number;
     driveEnabled: boolean;
     driveFolderId: string;
     driveFolderUrl: string;
@@ -52,7 +51,6 @@ export interface UploadField {
     id: string;
     label: string;
     allowedTypes: string;
-    maxSizeMB: number;
     required: boolean;
 }
 
