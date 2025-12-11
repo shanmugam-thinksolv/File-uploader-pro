@@ -52,7 +52,7 @@ export function Footer() {
                 </div>
 
                 <div className="border-t border-gray-100 pt-8 text-center">
-                    <p className="text-sm text-gray-400">© {new Date().getFullYear()} File Uploader Pro. All rights reserved.</p>
+                    <p className="text-sm text-gray-400">© 2025 File Uploader Pro. All rights reserved.</p>
                 </div>
             </div>
         </footer>
