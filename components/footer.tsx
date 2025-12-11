@@ -32,7 +32,7 @@ export function Footer() {
                                 <div className="space-y-1">
                                     <p className="font-medium text-gray-900">Our Location</p>
                                     <p className="text-gray-600 leading-relaxed text-sm">
-                                        Thinksolv Technologies Pvt Ltd, Forge Factory, KCT Tech Park, Coimbatore - 641 049, India.
+                                        Thinksolv Technologies Pvt Ltd, 1st Floor, Covai Tech Park, Saravanampatti, Coimbatore - 641 049, India.
                                     </p>
                                 </div>
                             </div>
