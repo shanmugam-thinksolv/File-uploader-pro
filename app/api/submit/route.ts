@@ -70,61 +70,82 @@ export async function POST(request: Request) {
             }
         }
 
-        // Backward compatibility: If 'files' is provided, use the first file for the legacy fields
-        // If 'files' is NOT provided, use the legacy fields (fileUrl, etc.)
-        let primaryFile = {
-            url: fileUrl,
-            name: fileName,
-            type: fileType,
-            size: fileSize
-        };
-
+        // Normalize files array: If 'files' is provided, use it; otherwise create array from legacy fields
+        let filesArray: Array<{ url: string; name: string; type: string; size: number }> = [];
+        
         if (files && Array.isArray(files) && files.length > 0) {
-            const firstFile = files[0];
-            primaryFile = {
-                url: firstFile.url,
-                name: firstFile.name || firstFile.fileName,
-                type: firstFile.type || firstFile.fileType,
-                size: firstFile.size || firstFile.fileSize
-            };
+            // Use the files array provided
+            filesArray = files.map((f: any) => ({
+                url: f.url || f.fileUrl || '',
+                name: f.name || f.fileName || '',
+                type: f.type || f.fileType || 'unknown',
+                size: f.size || f.fileSize || 0
+            }));
+        } else if (fileUrl && fileName) {
+            // Backward compatibility: Use legacy fields if files array is not provided
+            filesArray = [{
+                url: fileUrl,
+                name: fileName,
+                type: fileType || 'unknown',
+                size: fileSize || 0
+            }];
         }
 
-        if (!primaryFile.url || !primaryFile.name) {
-            console.error("Missing file data for primary file", primaryFile);
+        if (filesArray.length === 0) {
+            console.error("No files provided in submission");
             return NextResponse.json(
                 {
                     error: 'Missing file data',
-                    details: primaryFile
+                    details: 'No files provided in the submission'
                 },
                 { status: 400 }
             );
         }
 
-        // Create submission record
-        const submission = await prisma.submission.create({
-            data: {
-                formId,
-                fileUrl: primaryFile.url,
-                fileName: primaryFile.name,
-                fileType: primaryFile.type || 'unknown',
-                fileSize: primaryFile.size || 0,
-                files: files || [primaryFile], // Ensure files is always populated
-                answers: answers || [],
-                submitterName,
-                submitterEmail,
-                metadata: metadata || {},
-            } as any,
-        });
+        // Validate all files have required data
+        for (const file of filesArray) {
+            if (!file.url || !file.name) {
+                console.error("Missing file data", file);
+                return NextResponse.json(
+                    {
+                        error: 'Missing file data',
+                        details: `File missing url or name: ${JSON.stringify(file)}`
+                    },
+                    { status: 400 }
+                );
+            }
+        }
 
-        // If metadata spreadsheet is enabled, append to spreadsheet
+        // Create ONE submission record per file
+        // This ensures each file appears as a separate row in the database
+        const submissions = await Promise.all(
+            filesArray.map((file) =>
+                prisma.submission.create({
+                    data: {
+                        formId,
+                        fileUrl: file.url,
+                        fileName: file.name,
+                        fileType: file.type || 'unknown',
+                        fileSize: file.size || 0,
+                        files: filesArray, // Store all files in JSON for reference
+                        answers: answers || [],
+                        submitterName,
+                        submitterEmail,
+                        metadata: metadata || {},
+                    } as any,
+                })
+            )
+        );
+
+        // If metadata spreadsheet is enabled, append to spreadsheet (only once, not per file)
         if (form.enableMetadataSpreadsheet && form.userId) {
             try {
                 // Format files array for spreadsheet
-                const filesForSpreadsheet = (files || [primaryFile]).map((f: any) => ({
-                    name: f.name || f.fileName || '',
-                    type: f.type || f.fileType || '',
-                    size: f.size || f.fileSize || 0,
-                    url: f.url || f.fileUrl || ''
+                const filesForSpreadsheet = filesArray.map((f) => ({
+                    name: f.name,
+                    type: f.type,
+                    size: f.size,
+                    url: f.url
                 }));
 
                 await appendSubmissionToSpreadsheet(
@@ -147,7 +168,9 @@ export async function POST(request: Request) {
             }
         }
 
-        return NextResponse.json(submission, { status: 201 });
+        // Return the first submission (for backward compatibility)
+        // All submissions are already created in the database
+        return NextResponse.json(submissions[0], { status: 201 });
     } catch (error: any) {
         console.error('Error submitting form:', error);
         return NextResponse.json(

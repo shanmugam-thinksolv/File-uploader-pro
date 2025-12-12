@@ -28,10 +28,21 @@ function UploadsContent() {
     const fetchForms = async () => {
         try {
             const res = await fetch('/api/forms')
+            if (!res.ok) {
+                console.error('Failed to fetch forms:', res.statusText)
+                setForms([])
+                return
+            }
             const data = await res.json()
-            setForms(data)
+            if (Array.isArray(data)) {
+                setForms(data)
+            } else {
+                console.error('Fetched data is not an array:', data)
+                setForms([])
+            }
         } catch (error) {
             console.error('Failed to fetch forms', error)
+            setForms([])
         }
     }
 
@@ -141,7 +152,7 @@ function UploadsContent() {
                                 className="flex h-10 w-full items-center justify-between rounded-md border border-gray-200 bg-white px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 disabled:cursor-not-allowed disabled:opacity-50"
                             >
                                 <option value="all">All Forms</option>
-                                {forms.map(form => (
+                                {Array.isArray(forms) && forms.map(form => (
                                     <option key={form.id} value={form.id}>{form.title}</option>
                                 ))}
                             </select>
@@ -171,6 +182,7 @@ function UploadsContent() {
                                     <thead className="[&_tr]:border-b">
                                         <tr className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted">
                                             <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">File Name</th>
+                                            <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">File Type</th>
                                             <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Uploader</th>
                                             <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Form</th>
                                             <th className="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Size</th>
@@ -186,6 +198,9 @@ function UploadsContent() {
                                                         <FileText className="w-4 h-4 text-indigo-600" />
                                                         {submission.fileName}
                                                     </div>
+                                                </td>
+                                                <td className="p-4 align-middle">
+                                                    <span className="text-sm text-muted-foreground">{submission.fileType || 'unknown'}</span>
                                                 </td>
                                                 <td className="p-4 align-middle">
                                                     <div className="flex flex-col">

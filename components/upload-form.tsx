@@ -234,15 +234,23 @@ const FileDropzone = ({
                                         )}>
                                             {formatFileSize(file.size)}
                                         </p>
-                                        {isUploading && progress !== undefined && (
+                                        {(isUploading || isComplete) && progress !== undefined && (
                                             <div className="mt-2">
                                                 <div className="w-full bg-gray-200 rounded-full h-1.5">
                                                     <div
-                                                        className="bg-blue-600 h-1.5 rounded-full transition-all duration-300"
+                                                        className={cn(
+                                                            "h-1.5 rounded-full transition-all duration-300",
+                                                            isComplete ? "bg-green-600" : "bg-blue-600"
+                                                        )}
                                                         style={{ width: `${progress}%` }}
                                                     />
                                                 </div>
-                                                <p className="text-xs text-blue-600 mt-1">{progress}% uploaded</p>
+                                                <p className={cn(
+                                                    "text-xs mt-1",
+                                                    isComplete ? "text-green-600" : "text-blue-600"
+                                                )}>
+                                                    {progress}% {isComplete ? "uploaded" : "uploading"}
+                                                </p>
                                             </div>
                                         )}
                                         {hasError && (
@@ -520,7 +528,7 @@ export default function UploadForm({ isPreview = false, formId, initialData }: {
                     const file = fieldFiles[index]
 
                     try {
-                        // Update progress
+                        // Initialize progress to 0%
                         setUploadProgress(prev => ({
                             ...prev,
                             [field.id]: {
@@ -533,24 +541,75 @@ export default function UploadForm({ isPreview = false, formId, initialData }: {
                         formData.append('file', file)
                         if (formId) formData.append('formId', formId)
 
-                        const uploadRes = await fetch('/api/upload', {
-                            method: 'POST',
-                            body: formData
+                        // Use XMLHttpRequest to track upload progress
+                        const uploadData = await new Promise<any>((resolve, reject) => {
+                            const xhr = new XMLHttpRequest()
+
+                            // Track upload progress with incremental percentages (10%, 20%, 30%...)
+                            let lastDisplayedProgress = 0
+                            xhr.upload.addEventListener('progress', (e) => {
+                                if (e.lengthComputable) {
+                                    const percentComplete = Math.round((e.loaded / e.total) * 100)
+                                    // Round to nearest 10% increment (0, 10, 20, 30, ..., 100)
+                                    const roundedProgress = Math.floor(percentComplete / 10) * 10
+                                    // Only update if progress increased (never decrease)
+                                    const displayProgress = Math.max(roundedProgress, lastDisplayedProgress)
+                                    
+                                    // Only update state if progress actually increased
+                                    if (displayProgress > lastDisplayedProgress) {
+                                        lastDisplayedProgress = displayProgress
+                                        setUploadProgress(prev => ({
+                                            ...prev,
+                                            [field.id]: {
+                                                ...(prev[field.id] || {}),
+                                                [index]: displayProgress
+                                            }
+                                        }))
+                                    }
+                                }
+                            })
+
+                            // Handle completion
+                            xhr.addEventListener('load', () => {
+                                if (xhr.status >= 200 && xhr.status < 300) {
+                                    try {
+                                        const response = JSON.parse(xhr.responseText)
+                                        // Ensure progress is 100% on completion
+                                        lastDisplayedProgress = 100
+                                        setUploadProgress(prev => ({
+                                            ...prev,
+                                            [field.id]: {
+                                                ...(prev[field.id] || {}),
+                                                [index]: 100
+                                            }
+                                        }))
+                                        resolve(response)
+                                    } catch (parseError) {
+                                        reject(new Error('Failed to parse response'))
+                                    }
+                                } else {
+                                    try {
+                                        const errorData = JSON.parse(xhr.responseText)
+                                        reject(new Error(errorData.details || errorData.error || `Upload failed: ${xhr.statusText}`))
+                                    } catch {
+                                        reject(new Error(`Upload failed: ${xhr.statusText}`))
+                                    }
+                                }
+                            })
+
+                            // Handle errors
+                            xhr.addEventListener('error', () => {
+                                reject(new Error('Network error during upload'))
+                            })
+
+                            xhr.addEventListener('abort', () => {
+                                reject(new Error('Upload was aborted'))
+                            })
+
+                            // Start upload
+                            xhr.open('POST', '/api/upload')
+                            xhr.send(formData)
                         })
-
-                        if (!uploadRes.ok) {
-                            const errorData = await uploadRes.json()
-                            const errorMsg = errorData.details || errorData.error || `Upload failed for ${file.name}`
-
-                            // Store error for this specific file
-                            if (!errors[field.id]) errors[field.id] = {}
-                            errors[field.id][index] = errorMsg
-
-                            // Continue with other files instead of throwing
-                            continue
-                        }
-
-                        const uploadData = await uploadRes.json()
 
                         uploadedFiles.push({
                             ...uploadData,
@@ -561,18 +620,19 @@ export default function UploadForm({ isPreview = false, formId, initialData }: {
                             fileType: file.type
                         })
 
-                        // Update progress to 100%
-                        setUploadProgress(prev => ({
-                            ...prev,
-                            [field.id]: {
-                                ...(prev[field.id] || {}),
-                                [index]: 100
-                            }
-                        }))
                     } catch (fileError: any) {
                         // Store error for this specific file
                         if (!errors[field.id]) errors[field.id] = {}
                         errors[field.id][index] = fileError.message || 'Upload failed'
+                        
+                        // Reset progress on error
+                        setUploadProgress(prev => ({
+                            ...prev,
+                            [field.id]: {
+                                ...(prev[field.id] || {}),
+                                [index]: 0
+                            }
+                        }))
                     }
                 }
             }

@@ -1,17 +1,18 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import Link from "next/link"
 import { useSession } from "next-auth/react"
-import { useRouter } from "next/navigation"
+import { useRouter, usePathname } from "next/navigation"
 
 import { Button } from "@/components/ui/button"
 import { Switch } from "@/components/ui/switch"
-import { Plus, FileText, Loader2, ExternalLink, AlertTriangle, X, CheckCircle } from "lucide-react"
+import { Plus, FileText, Loader2, ExternalLink, AlertTriangle, X, CheckCircle, Clock, Pencil } from "lucide-react"
 
 export default function AdminDashboard() {
     const { data: session, status } = useSession()
     const router = useRouter()
+    const pathname = usePathname()
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const [forms, setForms] = useState<any[]>([])
@@ -21,7 +22,7 @@ export default function AdminDashboard() {
         formId: null,
         isActive: false
     })
-    const [messageModal, setMessageModal] = useState<{ isOpen: boolean; title: string; message: string; type: 'success' | 'error' }>({
+    const [messageModal, setMessageModal] = useState<{ isOpen: boolean; title: string; message: string; type: 'success' | 'error' | 'expired' }>({
         isOpen: false,
         title: '',
         message: '',
@@ -35,19 +36,19 @@ export default function AdminDashboard() {
         }
     }, [status, router])
 
-    useEffect(() => {
-        if (status === "authenticated") {
-            fetchForms()
-        }
-    }, [status])
-
-    const fetchForms = async () => {
+    const fetchForms = useCallback(async () => {
         try {
             const res = await fetch('/api/forms')
-            if (!res.ok) {
-                throw new Error('Failed to fetch forms')
-            }
             const data = await res.json()
+            
+            // Handle error responses
+            if (!res.ok) {
+                console.error('API error:', data.error || 'Failed to fetch forms')
+                setForms([])
+                return
+            }
+            
+            // Ensure data is an array
             if (Array.isArray(data)) {
                 setForms(data)
             } else {
@@ -60,13 +61,46 @@ export default function AdminDashboard() {
         } finally {
             setLoading(false)
         }
-    }
+    }, [])
 
-    const showMessage = (title: string, message: string, type: 'success' | 'error' = 'error') => {
+    useEffect(() => {
+        if (status === "authenticated") {
+            fetchForms()
+        }
+    }, [status, fetchForms])
+
+    // Refresh forms when navigating back to dashboard (e.g., after creating/editing form)
+    useEffect(() => {
+        if (status === "authenticated" && pathname === '/admin/dashboard') {
+            fetchForms()
+        }
+    }, [pathname, status, fetchForms])
+
+    const showMessage = (title: string, message: string, type: 'success' | 'error' | 'expired' = 'error') => {
         setMessageModal({ isOpen: true, title, message, type })
     }
 
-    const handleToggleStatus = async (formId: string, currentStatus: boolean) => {
+    const isFormExpired = (form: any) => {
+        if (!form.expiryDate) return false
+        const expiryDate = new Date(form.expiryDate)
+        const now = new Date()
+        return now > expiryDate
+    }
+
+    const handleToggleStatus = async (formId: string, currentStatus: boolean, form: any) => {
+        // Check if form is expired
+        if (isFormExpired(form)) {
+            // If trying to enable an expired form, show tooltip/message
+            if (!currentStatus) {
+                showMessage(
+                    'Form Expired',
+                    'This form has expired. Please update the expiry date in the form editor to enable it again.',
+                    'expired'
+                )
+                return
+            }
+        }
+
         // Optimistic update
         setForms(forms.map(f =>
             f.id === formId ? { ...f, isAcceptingResponses: !currentStatus } : f
@@ -85,6 +119,9 @@ export default function AdminDashboard() {
                     f.id === formId ? { ...f, isAcceptingResponses: currentStatus } : f
                 ))
                 showMessage('Error', 'Failed to update status', 'error')
+            } else {
+                // Refresh forms to get updated expiry status
+                fetchForms()
             }
         } catch (error) {
             console.error('Failed to update status', error)
@@ -139,12 +176,14 @@ export default function AdminDashboard() {
                     <h2 className="text-3xl font-bold tracking-tight">My Forms</h2>
                     <p className="text-muted-foreground">Manage your file upload forms.</p>
                 </div>
-                <Link href="/admin/editor?id=new&tab=configuration">
-                    <Button>
-                        <Plus className="w-4 h-4 mr-2" />
-                        Create New Form
-                    </Button>
-                </Link>
+                <div className="flex items-center gap-2">
+                    <Link href="/admin/editor?id=new&tab=configuration">
+                        <Button>
+                            <Plus className="w-4 h-4 mr-2" />
+                            Create New Form
+                        </Button>
+                    </Link>
+                </div>
             </div>
 
             {status === "loading" || loading ? (
@@ -163,24 +202,29 @@ export default function AdminDashboard() {
                 </div>
             ) : (
                 <div className="space-y-4">
-                    {forms.map((form) => (
-                        <div
-                            key={form.id}
-                            className="bg-white border border-gray-200 rounded-lg p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm"
-                        >
-                            <div className="flex items-center gap-4 flex-wrap">
-                                <h3 className="text-base font-semibold text-gray-900">{form.title}</h3>
+                    {forms.map((form) => {
+                        const expired = isFormExpired(form)
+                        // If form is expired, force isAcceptingResponses to false
+                        const effectiveStatus = expired ? false : form.isAcceptingResponses
+                        
+                        return (
+                            <div
+                                key={form.id}
+                                className="bg-white border border-gray-200 rounded-lg p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm"
+                            >
+                                <div className="flex items-center gap-4 flex-wrap">
+                                    <h3 className="text-base font-semibold text-gray-900">{form.title}</h3>
 
-                                <div className="flex items-center gap-2 bg-gray-50 px-3 py-1 rounded-full border border-gray-100">
-                                    <Switch
-                                        checked={form.isAcceptingResponses}
-                                        onCheckedChange={() => handleToggleStatus(form.id, form.isAcceptingResponses)}
-                                        className="scale-75"
-                                    />
-                                    <span className={`text-xs font-medium ${form.isAcceptingResponses ? 'text-green-600' : 'text-gray-500'}`}>
-                                        {form.isAcceptingResponses ? 'Accepting Responses' : 'Form Closed'}
-                                    </span>
-                                </div>
+                                    <div className="flex items-center gap-2 bg-gray-50 px-3 py-1 rounded-full border border-gray-100">
+                                        <Switch
+                                            checked={effectiveStatus}
+                                            onCheckedChange={() => handleToggleStatus(form.id, effectiveStatus, form)}
+                                            className={`scale-75 ${expired ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                        />
+                                        <span className={`text-xs font-medium ${effectiveStatus ? 'text-green-600' : 'text-gray-500'}`}>
+                                            {expired ? 'Form Expired' : (effectiveStatus ? 'Accepting Responses' : 'Form Closed')}
+                                        </span>
+                                    </div>
 
                                 <span className="text-sm text-gray-400 hidden sm:inline">•</span>
                                 <p className="text-sm text-gray-500">
@@ -203,6 +247,7 @@ export default function AdminDashboard() {
                                 </Link>
                                 <Link href={`/admin/editor?id=${form.id}&tab=configuration`}>
                                     <Button variant="outline" size="sm" className="h-9 bg-white hover:bg-gray-50 text-gray-700 border-gray-200 px-4">
+                                        <Pencil className="w-4 h-4 mr-2 text-gray-500" />
                                         Edit
                                     </Button>
                                 </Link>
@@ -219,7 +264,8 @@ export default function AdminDashboard() {
                                 </button>
                             </div>
                         </div>
-                    ))}
+                        )
+                    })}
                 </div>
             )}
 
@@ -306,8 +352,16 @@ export default function AdminDashboard() {
                         </button>
 
                         <div className="flex justify-center mb-4">
-                            <div className={`w-16 h-16 rounded-full flex items-center justify-center ${messageModal.type === 'error' ? 'bg-red-100' : 'bg-green-100'}`}>
-                                {messageModal.type === 'error' ? (
+                            <div className={`w-16 h-16 rounded-full flex items-center justify-center ${
+                                messageModal.type === 'expired' 
+                                    ? 'bg-orange-100' 
+                                    : messageModal.type === 'error' 
+                                        ? 'bg-red-100' 
+                                        : 'bg-green-100'
+                            }`}>
+                                {messageModal.type === 'expired' ? (
+                                    <Clock className="w-8 h-8 text-orange-600" />
+                                ) : messageModal.type === 'error' ? (
                                     <AlertTriangle className="w-8 h-8 text-red-600" />
                                 ) : (
                                     <CheckCircle className="w-8 h-8 text-green-600" />
@@ -326,7 +380,13 @@ export default function AdminDashboard() {
                         <div className="flex justify-center">
                             <Button
                                 onClick={() => setMessageModal(prev => ({ ...prev, isOpen: false }))}
-                                className={`min-w-[120px] h-11 ${messageModal.type === 'error' ? 'bg-red-600 hover:bg-red-700' : 'bg-green-600 hover:bg-green-700'}`}
+                                className={`min-w-[120px] h-11 ${
+                                    messageModal.type === 'expired'
+                                        ? 'bg-orange-600 hover:bg-orange-700'
+                                        : messageModal.type === 'error'
+                                            ? 'bg-red-600 hover:bg-red-700'
+                                            : 'bg-green-600 hover:bg-green-700'
+                                }`}
                             >
                                 Okay
                             </Button>

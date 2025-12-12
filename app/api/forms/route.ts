@@ -130,13 +130,65 @@ export async function GET() {
                 userId: session.user.id
             },
             orderBy: { createdAt: 'desc' },
+            include: {
+                _count: {
+                    select: { submissions: true }
+                }
+            }
         } as any);
+
+        // Ensure forms is an array
+        if (!Array.isArray(forms)) {
+            console.error('Prisma returned non-array:', forms);
+            return NextResponse.json([]);
+        }
+
+        // Check for expired forms and auto-disable them
+        const now = new Date();
+        const expiredFormIds: string[] = [];
+        
+        forms.forEach((form: any) => {
+            if (form.expiryDate) {
+                try {
+                    const expiryDate = new Date(form.expiryDate);
+                    if (now > expiryDate && form.isAcceptingResponses) {
+                        expiredFormIds.push(form.id);
+                    }
+                } catch (dateError) {
+                    console.error('Error parsing expiry date for form:', form.id, dateError);
+                }
+            }
+        });
+
+        // Batch update expired forms to disable them
+        if (expiredFormIds.length > 0) {
+            try {
+                await prisma.form.updateMany({
+                    where: {
+                        id: { in: expiredFormIds }
+                    },
+                    data: {
+                        isAcceptingResponses: false
+                    }
+                });
+
+                // Update the forms array to reflect the changes
+                forms.forEach((form: any) => {
+                    if (expiredFormIds.includes(form.id)) {
+                        form.isAcceptingResponses = false;
+                    }
+                });
+            } catch (updateError) {
+                console.error('Error updating expired forms:', updateError);
+                // Continue even if update fails - don't break the response
+            }
+        }
+
         return NextResponse.json(forms);
     } catch (error) {
         console.error('Error fetching forms:', error);
-        return NextResponse.json(
-            { error: 'Failed to fetch forms' },
-            { status: 500 }
-        );
+        console.error('Error details:', error instanceof Error ? error.message : 'Unknown error');
+        // Return empty array instead of error to prevent frontend crash
+        return NextResponse.json([]);
     }
 }

@@ -319,7 +319,12 @@ function EditorContent() {
             })
 
             if (res.ok) {
+                // Use router.refresh() to ensure dashboard refreshes
+                router.refresh()
                 router.push('/admin/dashboard')
+            } else {
+                const errorData = await res.json()
+                showMessage('Error', errorData.error || errorData.details || 'Failed to save form', 'error')
             }
         } catch (error) {
             console.error('Save failed:', error)

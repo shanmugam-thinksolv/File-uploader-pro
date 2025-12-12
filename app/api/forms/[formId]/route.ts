@@ -93,6 +93,53 @@ export async function PUT(
             updateData.isPasswordProtected = true;
         }
 
+        // Handle expiryDate - if updating expiryDate, check if form should be enabled
+        if (updateData.expiryDate !== undefined) {
+            if (updateData.expiryDate === null || updateData.expiryDate === '' || updateData.expiryDate === 'null') {
+                updateData.expiryDate = null;
+            } else {
+                // Convert to proper date format
+                const dateValue = new Date(updateData.expiryDate);
+                if (isNaN(dateValue.getTime())) {
+                    updateData.expiryDate = null;
+                } else {
+                    updateData.expiryDate = dateValue.toISOString();
+                }
+            }
+        }
+
+        // Check if form is expired and prevent enabling if expired
+        const currentForm = await prisma.form.findUnique({
+            where: { id: formId },
+            select: { expiryDate: true }
+        });
+
+        const finalExpiryDate = updateData.expiryDate !== undefined 
+            ? (updateData.expiryDate ? new Date(updateData.expiryDate) : null)
+            : (currentForm?.expiryDate ? new Date(currentForm.expiryDate) : null);
+
+        // If trying to enable a form that is expired, prevent it
+        if (finalExpiryDate && updateData.isAcceptingResponses === true) {
+            const now = new Date();
+            if (now > finalExpiryDate) {
+                return NextResponse.json(
+                    { 
+                        error: 'Cannot enable expired form',
+                        message: 'Please update the expiry date to a future date to enable this form.'
+                    },
+                    { status: 400 }
+                );
+            }
+        }
+
+        // If form is expired and not explicitly enabling, ensure it's disabled
+        if (finalExpiryDate && updateData.isAcceptingResponses !== false) {
+            const now = new Date();
+            if (now > finalExpiryDate) {
+                updateData.isAcceptingResponses = false;
+            }
+        }
+
         console.log('Filtered Update Data Keys:', Object.keys(updateData));
 
         const form = await prisma.form.update({
