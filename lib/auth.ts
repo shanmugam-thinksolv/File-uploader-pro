@@ -14,7 +14,7 @@ export const authOptions: NextAuthOptions = {
                     access_type: "offline",
                     response_type: "code",
                     // Changed from drive.file to drive to allow Picker to list all folders
-                    scope: "openid email profile https://www.googleapis.com/auth/drive",
+                    scope: "openid email profile https://www.googleapis.com/auth/drive https://www.googleapis.com/auth/spreadsheets",
                     // Default to select_account, but can be overridden
                     prompt: "consent"
                 }

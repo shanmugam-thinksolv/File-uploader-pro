@@ -11,7 +11,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Loader2, UploadCloud, CheckCircle, Lock, RefreshCcw, AlertCircle, Trash2 } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { BsFileEarmarkPdf, BsFileEarmarkWord, BsFileEarmarkExcel, BsImage, BsFileEarmarkPlay, BsFileEarmarkMusic, BsFileEarmarkZip, BsFileEarmark } from "react-icons/bs"
+import { BsFileEarmarkPdf, BsFileEarmarkWord, BsFileEarmarkExcel, BsImage, BsFileEarmarkPlay, BsFileEarmarkMusic, BsFileEarmarkZip, BsFileEarmarkText } from "react-icons/bs"
 
 // @ts-ignore
 declare module 'react' {
@@ -114,7 +114,7 @@ const FileDropzone = ({
         if (type.includes('excel') || type.includes('spreadsheet') || type.includes('csv')) return <BsFileEarmarkExcel style={style} className={className} />
         if (type.includes('zip') || type.includes('compressed')) return <BsFileEarmarkZip style={style} className={className} />
 
-        return <BsFileEarmark style={style} className={className} />
+        return <BsFileEarmarkText style={style} className={className} />
     }
 
     return (
@@ -305,6 +305,17 @@ export default function UploadForm({ isPreview = false, formId, initialData }: {
 
     useEffect(() => {
         if (initialData) {
+            // Check if form has expired
+            if (initialData.expiryDate) {
+                const expiryDate = new Date(initialData.expiryDate)
+                const now = new Date()
+                if (now > expiryDate) {
+                    setError(`This form expired on ${expiryDate.toLocaleDateString()} at ${expiryDate.toLocaleTimeString()}. It is no longer accepting submissions.`)
+                    setLoading(false)
+                    return
+                }
+            }
+
             if (!initialData.isPasswordProtected) {
                 setStep('form')
             }
@@ -363,6 +374,17 @@ export default function UploadForm({ isPreview = false, formId, initialData }: {
                         }]
                     }
 
+                    // Check if form has expired
+                    if (parsedData.expiryDate) {
+                        const expiryDate = new Date(parsedData.expiryDate)
+                        const now = new Date()
+                        if (now > expiryDate) {
+                            setError(`This form expired on ${expiryDate.toLocaleDateString()} at ${expiryDate.toLocaleTimeString()}. It is no longer accepting submissions.`)
+                            setLoading(false)
+                            return
+                        }
+                    }
+
                     setConfig(parsedData)
                     if (!data.isPasswordProtected) {
                         setStep('form')
@@ -371,7 +393,12 @@ export default function UploadForm({ isPreview = false, formId, initialData }: {
             })
             .catch(err => {
                 console.error("Failed to load config", err)
-                setError("Failed to load form configuration")
+                const errorData = err instanceof Error ? err.message : 'Failed to load form configuration'
+                if (errorData.includes('expired') || errorData.includes('410')) {
+                    setError('This form has expired and is no longer accepting submissions.')
+                } else {
+                    setError("Failed to load form configuration")
+                }
             })
             .finally(() => setLoading(false))
     }, [formId, isPreview, initialData])
@@ -630,6 +657,35 @@ export default function UploadForm({ isPreview = false, formId, initialData }: {
                 </Card>
             </div>
         )
+    }
+
+    // Check if form has expired (client-side check)
+    if (!isPreview && config && config.expiryDate) {
+        const expiryDate = new Date(config.expiryDate)
+        const now = new Date()
+        if (now > expiryDate) {
+            return (
+                <div className="w-full max-w-2xl mx-auto p-4">
+                    <Card className="shadow-lg border-orange-200">
+                        <CardHeader className="text-center">
+                            <div className="mx-auto bg-orange-100 p-3 rounded-full w-fit mb-4">
+                                <svg className="w-8 h-8 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                            </div>
+                            <CardTitle className="text-orange-600">Form Expired</CardTitle>
+                            <CardDescription>
+                                This form is no longer accepting submissions.
+                                <br />
+                                <span className="text-sm text-gray-500 mt-2 block">
+                                    Expired on {expiryDate.toLocaleDateString()} at {expiryDate.toLocaleTimeString()}
+                                </span>
+                            </CardDescription>
+                        </CardHeader>
+                    </Card>
+                </div>
+            )
+        }
     }
 
     const primaryColor = config?.primaryColor || '#4f46e5'

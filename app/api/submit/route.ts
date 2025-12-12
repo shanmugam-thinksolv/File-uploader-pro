@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { appendSubmissionToSpreadsheet } from '@/lib/google-sheets';
 
 export async function POST(request: Request) {
     try {
@@ -23,6 +24,50 @@ export async function POST(request: Request) {
                 { error: 'Missing form ID' },
                 { status: 400 }
             );
+        }
+
+        // Fetch form to check if metadata spreadsheet is enabled and if form has expired
+        const form = await prisma.form.findUnique({
+            where: { id: formId },
+            select: {
+                userId: true,
+                title: true,
+                enableMetadataSpreadsheet: true,
+                driveFolderId: true,
+                expiryDate: true,
+                isAcceptingResponses: true
+            }
+        });
+
+        if (!form) {
+            return NextResponse.json(
+                { error: 'Form not found' },
+                { status: 404 }
+            );
+        }
+
+        // Check if form is accepting responses
+        if (!form.isAcceptingResponses) {
+            return NextResponse.json(
+                { error: 'Form is not accepting responses' },
+                { status: 403 }
+            );
+        }
+
+        // Check if form has expired
+        if (form.expiryDate) {
+            const expiryDate = new Date(form.expiryDate);
+            const now = new Date();
+            if (now > expiryDate) {
+                return NextResponse.json(
+                    { 
+                        error: 'Form expired',
+                        message: 'This form is no longer accepting submissions.',
+                        expiryDate: form.expiryDate
+                    },
+                    { status: 410 } // 410 Gone
+                );
+            }
         }
 
         // Backward compatibility: If 'files' is provided, use the first file for the legacy fields
@@ -55,6 +100,7 @@ export async function POST(request: Request) {
             );
         }
 
+        // Create submission record
         const submission = await prisma.submission.create({
             data: {
                 formId,
@@ -69,6 +115,37 @@ export async function POST(request: Request) {
                 metadata: metadata || {},
             } as any,
         });
+
+        // If metadata spreadsheet is enabled, append to spreadsheet
+        if (form.enableMetadataSpreadsheet && form.userId) {
+            try {
+                // Format files array for spreadsheet
+                const filesForSpreadsheet = (files || [primaryFile]).map((f: any) => ({
+                    name: f.name || f.fileName || '',
+                    type: f.type || f.fileType || '',
+                    size: f.size || f.fileSize || 0,
+                    url: f.url || f.fileUrl || ''
+                }));
+
+                await appendSubmissionToSpreadsheet(
+                    form.userId,
+                    formId,
+                    form.title,
+                    form.driveFolderId,
+                    {
+                        timestamp: new Date().toISOString(),
+                        submitterName: submitterName || null,
+                        submitterEmail: submitterEmail || null,
+                        files: filesForSpreadsheet,
+                        answers: answers || [],
+                        metadata: metadata || {}
+                    }
+                );
+            } catch (spreadsheetError) {
+                // Log error but don't fail the submission
+                console.error('Failed to update metadata spreadsheet:', spreadsheetError);
+            }
+        }
 
         return NextResponse.json(submission, { status: 201 });
     } catch (error: any) {

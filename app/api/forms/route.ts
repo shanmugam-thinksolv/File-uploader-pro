@@ -12,66 +12,98 @@ export async function POST(request: Request) {
         }
 
         const body = await request.json();
-        const {
-            title,
-            description,
-            allowedTypes,
-            driveEnabled,
-            isAcceptingResponses,
-            expiryDate,
-            enableMetadataSpreadsheet,
-            subfolderOrganization,
-            customSubfolderField,
-            enableSmartGrouping,
-            logoUrl,
-            primaryColor,
-            backgroundColor,
-            fontFamily,
-            accessLevel,
-            allowedEmails,
-            emailFieldControl,
-            buttonTextColor,
-            cardStyle,
-            borderRadius,
-            coverImageUrl,
-            driveFolderId,
-            driveFolderName,
-            driveFolderUrl,
-            uploadFields,
-            customQuestions
-        } = body;
+        
+        // Whitelist allowed fields to prevent "Unknown argument" errors
+        const ALLOWED_FIELDS = [
+            'title', 'description', 'logoUrl', 'primaryColor', 'secondaryColor',
+            'backgroundColor', 'fontFamily', 'buttonTextColor', 'cardStyle',
+            'borderRadius', 'coverImageUrl', 'allowedTypes', 'maxSizeMB',
+            'driveEnabled', 'driveFolderId', 'driveFolderName', 'driveFolderUrl',
+            'isPasswordProtected', 'password', 'isCaptchaEnabled', 'enableSubmitAnother',
+            'isPublished', 'isAcceptingResponses', 'expiryDate', 'accessLevel',
+            'allowedEmails', 'emailFieldControl', 'enableMetadataSpreadsheet',
+            'subfolderOrganization', 'customSubfolderField', 'enableSmartGrouping',
+            'uploadFields', 'customQuestions'
+        ];
+
+        // Filter body to only include allowed fields (skip undefined values)
+        const createData: any = {};
+        for (const key of Object.keys(body)) {
+            if (ALLOWED_FIELDS.includes(key) && body[key] !== undefined) {
+                createData[key] = body[key];
+            }
+        }
+
+        // Map accessProtectionType to isPasswordProtected
+        // Frontend uses accessProtectionType ("PUBLIC", "PASSWORD", "GOOGLE")
+        // Database uses isPasswordProtected (boolean)
+        if (body.accessProtectionType !== undefined) {
+            if (body.accessProtectionType === 'PASSWORD') {
+                createData.isPasswordProtected = true;
+                // Handle empty password strings
+                if (createData.password === '' || createData.password === null || createData.password === undefined) {
+                    createData.password = null;
+                }
+            } else {
+                // PUBLIC or GOOGLE - no password protection
+                createData.isPasswordProtected = false;
+                createData.password = null;
+            }
+        } else if (createData.password && createData.password.trim() !== '') {
+            // If password is provided but accessProtectionType wasn't, assume password protection
+            createData.isPasswordProtected = true;
+        } else {
+            // Default to no password protection if not specified
+            createData.isPasswordProtected = createData.isPasswordProtected || false;
+            if (!createData.isPasswordProtected) {
+                createData.password = null;
+            }
+        }
+
+        // Set defaults for required fields
+        createData.title = createData.title || 'Untitled Form';
+        createData.description = createData.description || '';
+        createData.maxSizeMB = createData.maxSizeMB || 0; // No size limit - set to 0 to indicate unlimited
+        createData.userId = session.user.id;
+
+        // Handle expiryDate - convert empty strings to null, validate datetime format
+        if (createData.expiryDate !== undefined) {
+            if (createData.expiryDate === null || createData.expiryDate === '' || createData.expiryDate === 'null') {
+                createData.expiryDate = null;
+            } else {
+                // If it's a partial datetime (from datetime-local input), convert to full ISO-8601
+                const dateValue = new Date(createData.expiryDate);
+                if (isNaN(dateValue.getTime())) {
+                    // Invalid date, set to null
+                    createData.expiryDate = null;
+                } else {
+                    // Convert to ISO-8601 string
+                    createData.expiryDate = dateValue.toISOString();
+                }
+            }
+        }
+
+        // Ensure JSON fields are properly stringified
+        if (createData.uploadFields) {
+            createData.uploadFields = typeof createData.uploadFields === 'string' 
+                ? createData.uploadFields 
+                : JSON.stringify(createData.uploadFields);
+        } else {
+            createData.uploadFields = JSON.stringify([]);
+        }
+
+        if (createData.customQuestions) {
+            createData.customQuestions = typeof createData.customQuestions === 'string' 
+                ? createData.customQuestions 
+                : JSON.stringify(createData.customQuestions);
+        } else {
+            createData.customQuestions = JSON.stringify([]);
+        }
+
+        console.log('Filtered Create Data Keys:', Object.keys(createData));
 
         const form = await prisma.form.create({
-            data: {
-                title: title || 'Untitled Form',
-                description: description || '',
-                allowedTypes,
-                maxSizeMB: 0, // No size limit - set to 0 to indicate unlimited
-                driveEnabled,
-                driveFolderId,
-                driveFolderName,
-                driveFolderUrl,
-                isAcceptingResponses,
-                expiryDate,
-                enableMetadataSpreadsheet,
-                subfolderOrganization,
-                customSubfolderField,
-                enableSmartGrouping,
-                logoUrl,
-                primaryColor,
-                backgroundColor,
-                fontFamily,
-                accessLevel,
-                allowedEmails,
-                emailFieldControl,
-                buttonTextColor,
-                cardStyle,
-                borderRadius,
-                coverImageUrl,
-                uploadFields: uploadFields ? JSON.stringify(uploadFields) : JSON.stringify([]),
-                customQuestions: customQuestions ? JSON.stringify(customQuestions) : JSON.stringify([]),
-                userId: session.user.id
-            },
+            data: createData,
         });
 
         return NextResponse.json(form, { status: 201 });
