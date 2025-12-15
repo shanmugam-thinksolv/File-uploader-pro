@@ -116,11 +116,19 @@ export function GooglePickerFolderSelect({ formData, updateField }: GooglePicker
             console.log('Access token present:', !!accessToken);
             console.log('Origin:', window.location.protocol + '//' + window.location.host);
 
-            // Create and show the picker
+            // Create and show the picker with both My Drive and Shared Drives support
             const picker = new window.google.picker.PickerBuilder()
+                .enableFeature(window.google.picker.Feature.SUPPORT_DRIVES)
                 .addView(
                     new window.google.picker.DocsView(window.google.picker.ViewId.FOLDERS)
                         .setSelectFolderEnabled(true)
+                        .setMimeTypes('application/vnd.google-apps.folder')
+                )
+                .addView(
+                    new window.google.picker.DocsView(window.google.picker.ViewId.FOLDERS)
+                        .setSelectFolderEnabled(true)
+                        .setEnableDrives(true)
+                        .setIncludeFolders(true)
                         .setMimeTypes('application/vnd.google-apps.folder')
                 )
                 .setOAuthToken(accessToken)
@@ -163,9 +171,24 @@ export function GooglePickerFolderSelect({ formData, updateField }: GooglePicker
         if (data.action === window.google.picker.Action.PICKED) {
             const folder = data.docs[0];
             console.log('Folder selected:', folder);
+
+            // Detect if this is a shared drive folder
+            // Shared drive items have a driveId property
+            const isSharedDrive = !!folder.driveId;
+
+            console.log('Is Shared Drive:', isSharedDrive);
+            console.log('Drive ID:', folder.driveId);
+
             updateField('driveFolderId', folder.id);
             updateField('driveFolderName', folder.name);
             updateField('driveFolderUrl', folder.url);
+            updateField('driveType', isSharedDrive ? 'SHARED_DRIVE' : 'MY_DRIVE');
+
+            if (isSharedDrive && folder.driveId) {
+                updateField('sharedDriveId', folder.driveId);
+            } else {
+                updateField('sharedDriveId', '');
+            }
         } else if (data.action === window.google.picker.Action.CANCEL) {
             console.log('Picker cancelled by user');
         } else {
@@ -204,7 +227,15 @@ export function GooglePickerFolderSelect({ formData, updateField }: GooglePicker
                         </Tooltip>
                     </div>
                     {formData.driveFolderName ? (
-                        <p className="text-sm text-muted-foreground">Files will be saved to your selected folder.</p>
+                        <p className="text-sm text-muted-foreground">
+                            Files will be saved to your selected folder
+                            {formData.driveType === 'SHARED_DRIVE' && (
+                                <span className="ml-1 text-indigo-600 font-medium">(Shared Drive)</span>
+                            )}
+                            {formData.driveType === 'MY_DRIVE' && (
+                                <span className="ml-1 text-gray-600 font-medium">(My Drive)</span>
+                            )}
+                        </p>
                     ) : (
                         <p className="text-sm text-muted-foreground mt-1">
                             Files will be stored in the &quot;File Uploader Pro&quot; folder.
@@ -218,6 +249,18 @@ export function GooglePickerFolderSelect({ formData, updateField }: GooglePicker
                             <Folder className="w-4 h-4" />
                             <span className="font-medium truncate max-w-[150px]">{formData.driveFolderName}</span>
                         </div>
+                        {formData.driveType === 'SHARED_DRIVE' && (
+                            <div className="flex items-center gap-1 text-xs text-indigo-600 bg-indigo-50 px-2 py-1 rounded-md border border-indigo-100">
+                                <HardDrive className="w-3 h-3" />
+                                <span className="font-medium">Shared Drive</span>
+                            </div>
+                        )}
+                        {formData.driveType === 'MY_DRIVE' && (
+                            <div className="flex items-center gap-1 text-xs text-gray-600 bg-gray-50 px-2 py-1 rounded-md border border-gray-100">
+                                <HardDrive className="w-3 h-3" />
+                                <span className="font-medium">My Drive</span>
+                            </div>
+                        )}
                         <Button
                             variant="outline"
                             size="sm"

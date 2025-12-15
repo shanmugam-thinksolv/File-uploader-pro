@@ -9,6 +9,8 @@ export interface EditorFormData {
     driveFolderId: string;
     driveFolderUrl: string;
     driveFolderName: string;
+    driveType?: 'MY_DRIVE' | 'SHARED_DRIVE';
+    sharedDriveId?: string;
 
     // Access Control
     isAcceptingResponses: boolean;

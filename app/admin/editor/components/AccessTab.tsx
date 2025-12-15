@@ -60,7 +60,7 @@ export function AccessTab({ formData, updateField }: AccessTabProps) {
                         onValueChange={(val) => updateField('accessLevel', val as "ANYONE" | "INVITED")}
                         className="grid grid-cols-2 gap-5"
                     >
-                        <div className={`relative flex items-start space-x-4 p-5 rounded-xl border-2 cursor-pointer transition-all duration-200 ${formData.accessLevel === 'ANYONE' ? 'border-indigo-600 bg-indigo-50/30 shadow-sm' : 'border-slate-100 hover:border-indigo-200 hover:bg-slate-50'}`}>
+                        <div onClick={() => updateField('accessLevel', 'ANYONE')} className={`relative flex items-start space-x-4 p-5 rounded-xl border-2 cursor-pointer transition-all duration-200 ${formData.accessLevel === 'ANYONE' ? 'border-indigo-600 bg-indigo-50/30 shadow-sm' : 'border-slate-100 hover:border-indigo-200 hover:bg-slate-50'}`}>
                             <RadioGroupItem value="ANYONE" id="anyone" className="mt-1 text-indigo-600 border-slate-300" />
                             <div className="space-y-1.5">
                                 <Label htmlFor="anyone" className="font-semibold text-slate-900 cursor-pointer flex items-center gap-2">
@@ -70,7 +70,7 @@ export function AccessTab({ formData, updateField }: AccessTabProps) {
                                 <p className="text-xs text-slate-500 leading-relaxed">Anyone with the link can access</p>
                             </div>
                         </div>
-                        <div className={`relative flex items-start space-x-4 p-5 rounded-xl border-2 cursor-pointer transition-all duration-200 ${formData.accessLevel === 'INVITED' ? 'border-indigo-600 bg-indigo-50/30 shadow-sm' : 'border-slate-100 hover:border-indigo-200 hover:bg-slate-50'}`}>
+                        <div onClick={() => updateField('accessLevel', 'INVITED')} className={`relative flex items-start space-x-4 p-5 rounded-xl border-2 cursor-pointer transition-all duration-200 ${formData.accessLevel === 'INVITED' ? 'border-indigo-600 bg-indigo-50/30 shadow-sm' : 'border-slate-100 hover:border-indigo-200 hover:bg-slate-50'}`}>
                             <RadioGroupItem value="INVITED" id="invited" className="mt-1 text-indigo-600 border-slate-300" />
                             <div className="space-y-1.5">
                                 <Label htmlFor="invited" className="font-semibold text-slate-900 cursor-pointer flex items-center gap-2">
@@ -110,7 +110,7 @@ export function AccessTab({ formData, updateField }: AccessTabProps) {
                         className="grid grid-cols-1 gap-4"
                     >
                         {/* Public Option */}
-                        <div className={`relative flex items-start space-x-4 p-5 rounded-xl border-2 cursor-pointer transition-all duration-200 ${formData.accessProtectionType === 'PUBLIC' ? 'border-indigo-600 bg-indigo-50/30 shadow-sm' : 'border-slate-100 hover:border-indigo-200 hover:bg-slate-50'}`}>
+                        <div onClick={() => updateField('accessProtectionType', 'PUBLIC')} className={`relative flex items-start space-x-4 p-5 rounded-xl border-2 cursor-pointer transition-all duration-200 ${formData.accessProtectionType === 'PUBLIC' ? 'border-indigo-600 bg-indigo-50/30 shadow-sm' : 'border-slate-100 hover:border-indigo-200 hover:bg-slate-50'}`}>
                             <RadioGroupItem value="PUBLIC" id="ap_public" className="mt-1 text-indigo-600 border-slate-300" />
                             <div className="space-y-1.5 flex-1">
                                 <Label htmlFor="ap_public" className="font-semibold text-slate-900 cursor-pointer flex items-center gap-2">
@@ -143,7 +143,7 @@ export function AccessTab({ formData, updateField }: AccessTabProps) {
                         </div>
 
                         {/* Password Option */}
-                        <div className={`relative flex items-start space-x-4 p-5 rounded-xl border-2 cursor-pointer transition-all duration-200 ${formData.accessProtectionType === 'PASSWORD' ? 'border-indigo-600 bg-indigo-50/30 shadow-sm' : 'border-slate-100 hover:border-indigo-200 hover:bg-slate-50'}`}>
+                        <div onClick={() => updateField('accessProtectionType', 'PASSWORD')} className={`relative flex items-start space-x-4 p-5 rounded-xl border-2 cursor-pointer transition-all duration-200 ${formData.accessProtectionType === 'PASSWORD' ? 'border-indigo-600 bg-indigo-50/30 shadow-sm' : 'border-slate-100 hover:border-indigo-200 hover:bg-slate-50'}`}>
                             <RadioGroupItem value="PASSWORD" id="ap_password" className="mt-1 text-indigo-600 border-slate-300" />
                             <div className="space-y-1.5 flex-1">
                                 <Label htmlFor="ap_password" className="font-semibold text-slate-900 cursor-pointer flex items-center gap-2">
@@ -186,7 +186,7 @@ export function AccessTab({ formData, updateField }: AccessTabProps) {
                         </div>
 
                         {/* Google Sign-In Option */}
-                        <div className={`relative flex items-start space-x-4 p-5 rounded-xl border-2 cursor-pointer transition-all duration-200 ${formData.accessProtectionType === 'GOOGLE' ? 'border-indigo-600 bg-indigo-50/30 shadow-sm' : 'border-slate-100 hover:border-indigo-200 hover:bg-slate-50'}`}>
+                        <div onClick={() => updateField('accessProtectionType', 'GOOGLE')} className={`relative flex items-start space-x-4 p-5 rounded-xl border-2 cursor-pointer transition-all duration-200 ${formData.accessProtectionType === 'GOOGLE' ? 'border-indigo-600 bg-indigo-50/30 shadow-sm' : 'border-slate-100 hover:border-indigo-200 hover:bg-slate-50'}`}>
                             <RadioGroupItem value="GOOGLE" id="ap_google" className="mt-1 text-indigo-600 border-slate-300" />
                             <div className="space-y-1.5 flex-1">
                                 <Label htmlFor="ap_google" className="font-semibold text-slate-900 cursor-pointer flex items-center gap-2">

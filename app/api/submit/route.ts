@@ -60,7 +60,7 @@ export async function POST(request: Request) {
             const now = new Date();
             if (now > expiryDate) {
                 return NextResponse.json(
-                    { 
+                    {
                         error: 'Form expired',
                         message: 'This form is no longer accepting submissions.',
                         expiryDate: form.expiryDate
@@ -72,7 +72,7 @@ export async function POST(request: Request) {
 
         // Normalize files array: If 'files' is provided, use it; otherwise create array from legacy fields
         let filesArray: Array<{ url: string; name: string; type: string; size: number }> = [];
-        
+
         if (files && Array.isArray(files) && files.length > 0) {
             // Use the files array provided
             filesArray = files.map((f: any) => ({

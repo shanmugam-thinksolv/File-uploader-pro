@@ -10,7 +10,13 @@ import { Input } from "@/components/ui/input"
 import { Switch } from "@/components/ui/switch"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
-import { Save, Upload, Link2, Copy, Check, ArrowLeft, ChevronRight, Loader2, Globe, Mail, QrCode, Trash2, Plus, GripVertical, X, FilePlus, Eye } from "lucide-react"
+import { Save, Upload, Link2, Copy, Check, ArrowLeft, ChevronRight, Loader2, Globe, Mail, QrCode, Trash2, Plus, GripVertical, X, FilePlus, Eye, Users, Code, Send } from "lucide-react"
+import {
+    Tabs,
+    TabsContent,
+    TabsList,
+    TabsTrigger,
+} from "@/components/ui/tabs"
 import {
     Dialog,
     DialogContent,
@@ -193,6 +199,10 @@ function EditorContent() {
         type: 'error'
     })
 
+    // Email Invite State
+    const [emailInviteSubject, setEmailInviteSubject] = useState("File Upload Request")
+    const [emailInviteMessage, setEmailInviteMessage] = useState("Please upload your files using the link below.")
+
     // Auto-save
     const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
     const [isSaving, setIsSaving] = useState(false)
@@ -319,6 +329,19 @@ function EditorContent() {
             })
 
             if (res.ok) {
+                const data = await res.json()
+
+                // Save to localStorage to track ownership/history
+                try {
+                    const savedIds = JSON.parse(localStorage.getItem('my_form_ids') || '[]')
+                    if (!savedIds.includes(data.id)) {
+                        savedIds.push(data.id)
+                        localStorage.setItem('my_form_ids', JSON.stringify(savedIds))
+                    }
+                } catch (e) {
+                    console.error('Failed to save to localStorage', e)
+                }
+
                 // Use router.refresh() to ensure dashboard refreshes
                 router.refresh()
                 router.push('/admin/dashboard')
@@ -577,95 +600,201 @@ function EditorContent() {
                                                 </div>
                                             </div>
 
-                                            <div className="p-8 space-y-8">
-                                                {/* Link Section */}
-                                                <div className="space-y-4">
-                                                    <Label className="text-sm font-semibold text-gray-900 uppercase tracking-wide">Public Link</Label>
-                                                    <div className="flex gap-3">
-                                                        <div className="relative flex-1 group">
-                                                            <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none">
-                                                                <Link2 className="h-5 w-5 text-gray-400 group-focus-within:text-indigo-500 transition-colors" />
+                                            <div className="p-8">
+                                                <Tabs defaultValue="link" className="w-full">
+                                                    <TabsList className="w-full mb-6 grid grid-cols-3">
+                                                        <TabsTrigger value="link" className="data-[state=active]:text-indigo-600">
+                                                            <Link2 className="w-4 h-4 mr-2 text-indigo-600" /> Link
+                                                        </TabsTrigger>
+                                                        <TabsTrigger value="email" className="data-[state=active]:text-indigo-600">
+                                                            <Mail className="w-4 h-4 mr-2 text-indigo-600" /> Email
+                                                        </TabsTrigger>
+                                                        <TabsTrigger value="embed" className="data-[state=active]:text-indigo-600">
+                                                            <Code className="w-4 h-4 mr-2 text-indigo-600" /> Embed
+                                                        </TabsTrigger>
+                                                    </TabsList>
+
+                                                    {/* Link Tab */}
+                                                    <TabsContent value="link" className="space-y-8">
+                                                        <div className="space-y-4">
+                                                            <Label className="text-sm font-semibold text-gray-900 uppercase tracking-wide">Public Link</Label>
+                                                            <div className="flex gap-3">
+                                                                <div className="relative flex-1 group">
+                                                                    <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none">
+                                                                        <Link2 className="h-5 w-5 text-gray-400 group-focus-within:text-indigo-500 transition-colors" />
+                                                                    </div>
+                                                                    <Input
+                                                                        readOnly
+                                                                        value={formId ? `${typeof window !== 'undefined' ? window.location.origin : ''}/upload/${formId}` : 'Save form first'}
+                                                                        className="pl-12 h-12 bg-gray-50 border-gray-200 focus:bg-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 transition-all font-mono text-sm rounded-xl text-gray-600"
+                                                                    />
+                                                                </div>
+                                                                <Button
+                                                                    size="lg"
+                                                                    className={`h-12 px-6 font-medium transition-all ${copied ? 'bg-green-600 hover:bg-green-700 text-white' : 'bg-gray-900 hover:bg-gray-800 text-white'}`}
+                                                                    onClick={copyLink}
+                                                                >
+                                                                    {copied ? (
+                                                                        <>
+                                                                            <Check className="w-4 h-4 mr-2" />
+                                                                            Copied
+                                                                        </>
+                                                                    ) : (
+                                                                        <>
+                                                                            <Copy className="w-4 h-4 mr-2" />
+                                                                            Copy
+                                                                        </>
+                                                                    )}
+                                                                </Button>
                                                             </div>
-                                                            <Input
-                                                                readOnly
-                                                                value={formId ? `${typeof window !== 'undefined' ? window.location.origin : ''}/upload/${formId}` : 'Save form first'}
-                                                                className="pl-12 h-12 bg-gray-50 border-gray-200 focus:bg-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 transition-all font-mono text-sm rounded-xl text-gray-600"
-                                                            />
                                                         </div>
-                                                        <Button
-                                                            size="lg"
-                                                            className={`h-12 px-6 font-medium transition-all ${copied ? 'bg-green-600 hover:bg-green-700 text-white' : 'bg-gray-900 hover:bg-gray-800 text-white'}`}
-                                                            onClick={copyLink}
-                                                        >
-                                                            {copied ? (
-                                                                <>
-                                                                    <Check className="w-4 h-4 mr-2" />
-                                                                    Copied
-                                                                </>
-                                                            ) : (
-                                                                <>
-                                                                    <Copy className="w-4 h-4 mr-2" />
-                                                                    Copy
-                                                                </>
-                                                            )}
-                                                        </Button>
-                                                    </div>
-                                                </div>
 
-                                                {/* Quick Actions Grid */}
-                                                <div className="grid grid-cols-2 gap-4">
-                                                    <button
-                                                        onClick={handleShortenUrl}
-                                                        className="group flex items-center gap-4 p-4 rounded-xl border border-gray-200 hover:border-indigo-200 hover:bg-indigo-50/50 transition-all text-left"
-                                                    >
-                                                        <div className="w-12 h-12 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 group-hover:scale-110 transition-transform">
-                                                            {shortenLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Link2 className="w-5 h-5" />}
-                                                        </div>
-                                                        <div>
-                                                            <div className="font-semibold text-gray-900">Shorten URL</div>
-                                                            <div className="text-xs text-gray-500 mt-0.5">Get a compact link</div>
-                                                        </div>
-                                                    </button>
-
-                                                    <Dialog open={showQrCode} onOpenChange={setShowQrCode}>
-                                                        <DialogTrigger asChild>
-                                                            <button className="group flex items-center gap-4 p-4 rounded-xl border border-gray-200 hover:border-indigo-200 hover:bg-indigo-50/50 transition-all text-left">
-                                                                <div className="w-12 h-12 rounded-full bg-purple-100 flex items-center justify-center text-purple-600 group-hover:scale-110 transition-transform">
-                                                                    <QrCode className="w-5 h-5" />
+                                                        {/* Quick Actions Grid */}
+                                                        <div className="grid grid-cols-2 gap-4">
+                                                            <button
+                                                                onClick={handleShortenUrl}
+                                                                className="group flex items-center gap-4 p-4 rounded-xl border border-gray-200 hover:border-indigo-200 hover:bg-indigo-50/50 transition-all text-left"
+                                                            >
+                                                                <div className="w-12 h-12 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 group-hover:scale-110 transition-transform">
+                                                                    {shortenLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Link2 className="w-5 h-5" />}
                                                                 </div>
                                                                 <div>
-                                                                    <div className="font-semibold text-gray-900">QR Code</div>
-                                                                    <div className="text-xs text-gray-500 mt-0.5">Scan to open on mobile</div>
+                                                                    <div className="font-semibold text-gray-900">Shorten URL</div>
+                                                                    <div className="text-xs text-gray-500 mt-0.5">Get a compact link</div>
                                                                 </div>
                                                             </button>
-                                                        </DialogTrigger>
-                                                        <DialogContent className="sm:max-w-sm flex flex-col items-center justify-center py-10">
-                                                            <DialogHeader>
-                                                                <DialogTitle className="text-center">Scan to Upload</DialogTitle>
-                                                                <DialogDescription className="text-center">
-                                                                    Scan this QR code to open the upload form on your mobile device.
-                                                                </DialogDescription>
-                                                            </DialogHeader>
-                                                            <div className="p-6 bg-white rounded-2xl shadow-sm border border-gray-100 mt-6">
-                                                                <QRCodeCanvas
-                                                                    value={formId ? `${typeof window !== 'undefined' ? window.location.origin : ''}/upload/${formId}` : ''}
-                                                                    size={200}
-                                                                    level={"H"}
-                                                                    includeMargin={true}
+
+                                                            <Dialog open={showQrCode} onOpenChange={setShowQrCode}>
+                                                                <DialogTrigger asChild>
+                                                                    <button className="group flex items-center gap-4 p-4 rounded-xl border border-gray-200 hover:border-indigo-200 hover:bg-indigo-50/50 transition-all text-left">
+                                                                        <div className="w-12 h-12 rounded-full bg-purple-100 flex items-center justify-center text-purple-600 group-hover:scale-110 transition-transform">
+                                                                            <QrCode className="w-5 h-5" />
+                                                                        </div>
+                                                                        <div>
+                                                                            <div className="font-semibold text-gray-900">QR Code</div>
+                                                                            <div className="text-xs text-gray-500 mt-0.5">Scan to open on mobile</div>
+                                                                        </div>
+                                                                    </button>
+                                                                </DialogTrigger>
+                                                                <DialogContent className="sm:max-w-sm flex flex-col items-center justify-center py-10">
+                                                                    <DialogHeader>
+                                                                        <DialogTitle className="text-center">Scan to Upload</DialogTitle>
+                                                                        <DialogDescription className="text-center">
+                                                                            Scan this QR code to open the upload form on your mobile device.
+                                                                        </DialogDescription>
+                                                                    </DialogHeader>
+                                                                    <div className="p-6 bg-white rounded-2xl shadow-sm border border-gray-100 mt-6">
+                                                                        <QRCodeCanvas
+                                                                            value={formId ? `${typeof window !== 'undefined' ? window.location.origin : ''}/upload/${formId}` : ''}
+                                                                            size={200}
+                                                                            level={"H"}
+                                                                            includeMargin={true}
+                                                                        />
+                                                                    </div>
+                                                                    <Button className="mt-8 w-full" onClick={() => window.print()}>
+                                                                        Print QR Code
+                                                                    </Button>
+                                                                </DialogContent>
+                                                            </Dialog>
+                                                        </div>
+                                                    </TabsContent>
+
+                                                    {/* Email Tab */}
+                                                    <TabsContent value="email" className="space-y-6">
+                                                        <div className="space-y-4">
+                                                            <div className="space-y-2">
+                                                                <Label>Subject Line</Label>
+                                                                <Input
+                                                                    value={emailInviteSubject}
+                                                                    onChange={(e) => setEmailInviteSubject(e.target.value)}
                                                                 />
                                                             </div>
-                                                            <Button className="mt-8 w-full" onClick={() => window.print()}>
-                                                                Print QR Code
+                                                            <div className="space-y-2">
+                                                                <Label>Message Body</Label>
+                                                                <Textarea
+                                                                    value={emailInviteMessage}
+                                                                    onChange={(e) => setEmailInviteMessage(e.target.value)}
+                                                                    rows={4}
+                                                                />
+                                                            </div>
+                                                        </div>
+
+                                                        <div className="p-4 bg-blue-50 text-blue-800 rounded-lg text-sm border border-blue-100 flex items-start gap-2">
+                                                            <Mail className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                                                            <p>
+                                                                This will open your default email client with a pre-filled message containing the link to your form.
+                                                            </p>
+                                                        </div>
+
+                                                        <div className="flex gap-3">
+                                                            <Button
+                                                                variant="outline"
+                                                                className="flex-1 h-11"
+                                                                onClick={() => {
+                                                                    const link = formId ? `${window.location.origin}/upload/${formId}` : 'Save form first'
+                                                                    const fullBody = `${emailInviteMessage}\n\n${link}`
+                                                                    navigator.clipboard.writeText(`Subject: ${emailInviteSubject}\n\n${fullBody}`)
+                                                                    showMessage('Copied', 'Email content copied to clipboard', 'success')
+                                                                }}
+                                                            >
+                                                                <Copy className="w-4 h-4 mr-2" /> Copy Content
                                                             </Button>
-                                                        </DialogContent>
-                                                    </Dialog>
-                                                </div>
+                                                            <Button
+                                                                className="flex-1 h-11 bg-indigo-600 hover:bg-indigo-700 text-white"
+                                                                onClick={() => {
+                                                                    const link = formId ? `${window.location.origin}/upload/${formId}` : 'Save form first'
+                                                                    const fullBody = `${emailInviteMessage}\n\n${link}`
+                                                                    window.open(`mailto:?subject=${encodeURIComponent(emailInviteSubject)}&body=${encodeURIComponent(fullBody)}`)
+                                                                }}
+                                                            >
+                                                                <Send className="w-4 h-4 mr-2" /> Open Email
+                                                            </Button>
+                                                        </div>
+                                                    </TabsContent>
+
+                                                    {/* Embed Tab */}
+                                                    <TabsContent value="embed" className="space-y-6">
+                                                        <div className="space-y-4">
+                                                            <div className="space-y-2">
+                                                                <Label>Embed Code</Label>
+                                                                <p className="text-xs text-gray-500 mb-2">
+                                                                    Copy and paste this code into your website's HTML to display the upload form.
+                                                                </p>
+                                                                <div className="relative">
+                                                                    <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none">
+                                                                        <Code className="h-5 w-5 text-gray-400" />
+                                                                    </div>
+                                                                    <Textarea
+                                                                        readOnly
+                                                                        value={formId ? `<iframe src="${typeof window !== 'undefined' ? window.location.origin : ''}/upload/${formId}" width="100%" height="800px" style="border:0; border-radius: 8px; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);"></iframe>` : 'Save form first'}
+                                                                        className="pl-12 pr-32 pb-12 min-h-[120px] bg-slate-900 border-slate-800 text-slate-100 font-mono text-xs rounded-xl focus:ring-indigo-500/50 resize-none"
+                                                                    />
+                                                                    <div className="absolute bottom-3 right-3">
+                                                                        <Button
+                                                                            size="sm"
+                                                                            className="h-8 bg-white text-indigo-600 hover:bg-gray-100 font-medium"
+                                                                            onClick={() => {
+                                                                                const code = `<iframe src="${window.location.origin}/upload/${formId}" width="100%" height="800px" style="border:0; border-radius: 8px; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);"></iframe>`
+                                                                                navigator.clipboard.writeText(code)
+                                                                                showMessage('Copied', 'Embed code copied to clipboard', 'success')
+                                                                            }}
+                                                                        >
+                                                                            <Copy className="w-3.5 h-3.5 mr-2" /> Copy Code
+                                                                        </Button>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </TabsContent>
+                                                </Tabs>
 
                                                 <div className="border-t border-gray-100"></div>
 
                                                 {/* Access Control */}
                                                 <div className="space-y-4">
                                                     <Label className="text-sm font-semibold text-gray-900 uppercase tracking-wide">Who can respond?</Label>
+
+
                                                     <div className="grid grid-cols-2 gap-4">
                                                         <div
                                                             onClick={() => updateField('accessLevel', 'ANYONE')}
@@ -674,12 +803,12 @@ function EditorContent() {
                                                                 : 'border-gray-100 hover:border-gray-200 hover:bg-gray-50'
                                                                 }`}
                                                         >
-                                                            <div className={`mt-0.5 w-5 h-5 rounded-full border flex items-center justify-center ${formData.accessLevel === 'ANYONE' ? 'border-indigo-600' : 'border-gray-300'}`}>
+                                                            <div className={`mt-0.5 w-5 h-5 rounded-full border flex items-center justify-center flex-shrink-0 ${formData.accessLevel === 'ANYONE' ? 'border-indigo-600' : 'border-gray-300'}`}>
                                                                 {formData.accessLevel === 'ANYONE' && <div className="w-2.5 h-2.5 rounded-full bg-indigo-600" />}
                                                             </div>
                                                             <div className="ml-3">
                                                                 <div className="font-semibold text-gray-900">Public</div>
-                                                                <div className="text-xs text-gray-500 mt-1">Anyone with the link can respond</div>
+                                                                <div className="text-xs text-gray-500 mt-1 font-normal">Anyone with the link can respond</div>
                                                             </div>
                                                         </div>
 
@@ -690,12 +819,12 @@ function EditorContent() {
                                                                 : 'border-gray-100 hover:border-gray-200 hover:bg-gray-50'
                                                                 }`}
                                                         >
-                                                            <div className={`mt-0.5 w-5 h-5 rounded-full border flex items-center justify-center ${formData.accessLevel === 'INVITED' ? 'border-indigo-600' : 'border-gray-300'}`}>
+                                                            <div className={`mt-0.5 w-5 h-5 rounded-full border flex items-center justify-center flex-shrink-0 ${formData.accessLevel === 'INVITED' ? 'border-indigo-600' : 'border-gray-300'}`}>
                                                                 {formData.accessLevel === 'INVITED' && <div className="w-2.5 h-2.5 rounded-full bg-indigo-600" />}
                                                             </div>
                                                             <div className="ml-3">
                                                                 <div className="font-semibold text-gray-900">Restricted</div>
-                                                                <div className="text-xs text-gray-500 mt-1">Only invited people can respond</div>
+                                                                <div className="text-xs text-gray-500 mt-1 font-normal">Only invited people can respond</div>
                                                             </div>
                                                         </div>
                                                     </div>
@@ -760,7 +889,7 @@ function EditorContent() {
 
                         {/* Professional Tab Navigation */}
                         <div className="mb-8 border-b border-gray-200">
-                            <nav className=" flex -mb-px space-x-8" aria-label="Tabs">
+                            <nav className="flex justify-center -mb-px space-x-8" aria-label="Tabs">
                                 {[
                                     { name: 'General', step: 0 },
                                     { name: 'Uploads', step: 1 },
@@ -1018,7 +1147,7 @@ function EditorContent() {
                                         <div className="space-y-5">
                                             <div className="space-y-2">
                                                 <Label className="text-sm font-medium text-slate-700">Google Drive Storage</Label>
-                                                <p className="text-sm text-slate-500 leading-relaxed">Uploads are always saved to your Google Drive. Choose a custom folder below (optional).</p>
+                                                <p className="text-sm text-slate-500 leading-relaxed">Uploads are always saved to your Google Drive. Choose a custom folder or shared drives below.</p>
                                             </div>
 
                                             <DriveConnectionStatus formData={formData} updateField={updateField} />

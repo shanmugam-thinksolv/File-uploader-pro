@@ -9,6 +9,11 @@ export async function GET(
         const { formId } = await params;
         const form = await prisma.form.findUnique({
             where: { id: formId },
+            include: {
+                _count: {
+                    select: { submissions: true }
+                }
+            }
         });
 
         if (!form) {
@@ -24,7 +29,7 @@ export async function GET(
             const now = new Date();
             if (now > expiryDate) {
                 return NextResponse.json(
-                    { 
+                    {
                         error: 'Form expired',
                         expiryDate: form.expiryDate,
                         message: 'This form is no longer accepting submissions.'
@@ -114,7 +119,7 @@ export async function PUT(
             select: { expiryDate: true }
         });
 
-        const finalExpiryDate = updateData.expiryDate !== undefined 
+        const finalExpiryDate = updateData.expiryDate !== undefined
             ? (updateData.expiryDate ? new Date(updateData.expiryDate) : null)
             : (currentForm?.expiryDate ? new Date(currentForm.expiryDate) : null);
 
@@ -123,7 +128,7 @@ export async function PUT(
             const now = new Date();
             if (now > finalExpiryDate) {
                 return NextResponse.json(
-                    { 
+                    {
                         error: 'Cannot enable expired form',
                         message: 'Please update the expiry date to a future date to enable this form.'
                     },

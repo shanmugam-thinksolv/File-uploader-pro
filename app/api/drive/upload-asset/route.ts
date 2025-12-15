@@ -31,7 +31,9 @@ export async function POST(req: NextRequest) {
             const searchRes = await drive.files.list({
                 q: `name = '${formTitle.replace(/'/g, "\\'")}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false`,
                 fields: 'files(id)',
-                pageSize: 1
+                pageSize: 1,
+                supportsAllDrives: true,
+                includeItemsFromAllDrives: true
             })
 
             if (searchRes.data.files && searchRes.data.files.length > 0) {
@@ -43,7 +45,8 @@ export async function POST(req: NextRequest) {
                         name: formTitle,
                         mimeType: 'application/vnd.google-apps.folder'
                     },
-                    fields: 'id'
+                    fields: 'id',
+                    supportsAllDrives: true
                 })
                 finalParentId = createRes.data.id!
             }
@@ -56,7 +59,9 @@ export async function POST(req: NextRequest) {
         const folderRes = await drive.files.list({
             q: folderQuery,
             fields: 'files(id)',
-            pageSize: 1
+            pageSize: 1,
+            supportsAllDrives: true,
+            includeItemsFromAllDrives: true
         })
 
         if (folderRes.data.files && folderRes.data.files.length > 0) {
@@ -69,7 +74,8 @@ export async function POST(req: NextRequest) {
                     mimeType: 'application/vnd.google-apps.folder',
                     parents: [finalParentId]
                 },
-                fields: 'id'
+                fields: 'id',
+                supportsAllDrives: true
             })
             assetsFolderId = createRes.data.id!
         }
@@ -89,7 +95,8 @@ export async function POST(req: NextRequest) {
                 mimeType: file.type,
                 body: stream
             },
-            fields: 'id, webContentLink, webViewLink'
+            fields: 'id, webContentLink, webViewLink',
+            supportsAllDrives: true
         })
 
         const fileId = fileRes.data.id!

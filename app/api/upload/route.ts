@@ -53,7 +53,9 @@ export async function POST(request: Request) {
         const folderResponse = await drive.files.list({
             q: q,
             fields: 'files(id)',
-            pageSize: 1
+            pageSize: 1,
+            supportsAllDrives: true,
+            includeItemsFromAllDrives: true
         });
 
         if (folderResponse.data.files && folderResponse.data.files.length > 0) {
@@ -71,7 +73,8 @@ export async function POST(request: Request) {
 
             const folder = await drive.files.create({
                 requestBody: folderMetadata,
-                fields: 'id'
+                fields: 'id',
+                supportsAllDrives: true
             });
             targetFolderId = folder.data.id!;
         }
@@ -86,7 +89,8 @@ export async function POST(request: Request) {
                 mimeType: file.type,
                 body: stream
             },
-            fields: 'id, name, webViewLink, webContentLink, size'
+            fields: 'id, name, webViewLink, webContentLink, size',
+            supportsAllDrives: true
         });
 
         const driveFile = response.data;
