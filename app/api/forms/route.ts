@@ -125,6 +125,26 @@ export async function GET() {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
+        const now = new Date();
+
+        // First, batch update expired forms in a single query (more efficient)
+        try {
+            await prisma.form.updateMany({
+                where: {
+                    userId: session.user.id,
+                    expiryDate: { not: null, lte: now },
+                    isAcceptingResponses: true
+                },
+                data: {
+                    isAcceptingResponses: false
+                }
+            });
+        } catch (updateError) {
+            console.error('Error updating expired forms:', updateError);
+            // Continue even if update fails - don't break the response
+        }
+
+        // Then fetch all forms (already updated)
         const forms = await prisma.form.findMany({
             where: {
                 userId: session.user.id
@@ -141,47 +161,6 @@ export async function GET() {
         if (!Array.isArray(forms)) {
             console.error('Prisma returned non-array:', forms);
             return NextResponse.json([]);
-        }
-
-        // Check for expired forms and auto-disable them
-        const now = new Date();
-        const expiredFormIds: string[] = [];
-        
-        forms.forEach((form: any) => {
-            if (form.expiryDate) {
-                try {
-                    const expiryDate = new Date(form.expiryDate);
-                    if (now > expiryDate && form.isAcceptingResponses) {
-                        expiredFormIds.push(form.id);
-                    }
-                } catch (dateError) {
-                    console.error('Error parsing expiry date for form:', form.id, dateError);
-                }
-            }
-        });
-
-        // Batch update expired forms to disable them
-        if (expiredFormIds.length > 0) {
-            try {
-                await prisma.form.updateMany({
-                    where: {
-                        id: { in: expiredFormIds }
-                    },
-                    data: {
-                        isAcceptingResponses: false
-                    }
-                });
-
-                // Update the forms array to reflect the changes
-                forms.forEach((form: any) => {
-                    if (expiredFormIds.includes(form.id)) {
-                        form.isAcceptingResponses = false;
-                    }
-                });
-            } catch (updateError) {
-                console.error('Error updating expired forms:', updateError);
-                // Continue even if update fails - don't break the response
-            }
         }
 
         return NextResponse.json(forms);

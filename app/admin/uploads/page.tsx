@@ -149,7 +149,7 @@ function UploadsContent() {
                             <select
                                 value={selectedFormId}
                                 onChange={(e) => setSelectedFormId(e.target.value)}
-                                className="flex h-10 w-full items-center justify-between rounded-md border border-gray-200 bg-white px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 disabled:cursor-not-allowed disabled:opacity-50"
+                                className="flex h-10 w-full items-center justify-between rounded-md border border-gray-200 bg-white px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 disabled:cursor-not-allowed disabled:opacity-50"
                             >
                                 <option value="all">All Forms</option>
                                 {Array.isArray(forms) && forms.map(form => (
@@ -195,7 +195,7 @@ function UploadsContent() {
                                             <tr key={submission.id} className="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted">
                                                 <td className="p-4 align-middle font-medium">
                                                     <div className="flex items-center gap-2">
-                                                        <FileText className="w-4 h-4 text-indigo-600" />
+                                                        <FileText className="w-4 h-4 text-primary-600" />
                                                         {submission.fileName}
                                                     </div>
                                                 </td>

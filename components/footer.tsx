@@ -1,3 +1,5 @@
+"use client" 
+
 export function Footer() {
     return (
         <footer className="bg-white border-t border-gray-100 pt-16 pb-8 mt-auto">
@@ -6,7 +8,7 @@ export function Footer() {
                     {/* Brand & Links */}
                     <div className="space-y-8">
                         <div className="flex items-center gap-3">
-                            <div className="w-9 h-9 bg-gradient-to-br from-indigo-600 to-violet-600 rounded-xl flex items-center justify-center shadow-indigo-200 shadow-md">
+                            <div className="w-9 h-9 rounded-xl flex items-center justify-center shadow-md" style={{ background: 'linear-gradient(to bottom right, var(--primary-600), var(--primary-700))', boxShadow: '0 4px 6px -1px color-mix(in srgb, var(--primary-200) 40%, transparent)' }}>
                                 <span className="text-white font-bold text-lg">F</span>
                             </div>
                             <span className="font-bold text-xl text-gray-900 tracking-tight">File Uploader Pro</span>
@@ -15,9 +17,9 @@ export function Footer() {
                             The secure, professional way to receive files from anyone. No account required for your clients.
                         </p>
                         <div className="flex gap-6 text-sm font-medium text-gray-600">
-                            <a href="#" className="hover:text-indigo-600 transition-colors">Home</a>
-                            <a href="#" className="hover:text-indigo-600 transition-colors">Privacy Policy</a>
-                            <a href="#" className="hover:text-indigo-600 transition-colors">Terms of Service</a>
+                            <a href="#" className="transition-colors" onMouseEnter={(e) => e.currentTarget.style.color = 'var(--primary-600)'} onMouseLeave={(e) => e.currentTarget.style.color = ''}>Home</a>
+                            <a href="#" className="transition-colors" onMouseEnter={(e) => e.currentTarget.style.color = 'var(--primary-600)'} onMouseLeave={(e) => e.currentTarget.style.color = ''}>Privacy Policy</a>
+                            <a href="#" className="transition-colors" onMouseEnter={(e) => e.currentTarget.style.color = 'var(--primary-600)'} onMouseLeave={(e) => e.currentTarget.style.color = ''}>Terms of Service</a>
                         </div>
                     </div>
 
@@ -27,7 +29,7 @@ export function Footer() {
                         <div className="space-y-4">
                             <div className="flex items-start gap-3">
                                 <div className="mt-1 min-w-5">
-                                    <div className="w-2 h-2 rounded-full bg-indigo-600"></div>
+                                    <div className="w-2 h-2 rounded-full" style={{ backgroundColor: 'var(--primary-600)' }}></div>
                                 </div>
                                 <div className="space-y-1">
                                     <p className="font-medium text-gray-900">Our Location</p>
@@ -38,11 +40,11 @@ export function Footer() {
                             </div>
                             <div className="flex items-start gap-3">
                                 <div className="mt-1 min-w-5">
-                                    <div className="w-2 h-2 rounded-full bg-indigo-600"></div>
+                                    <div className="w-2 h-2 rounded-full" style={{ backgroundColor: 'var(--primary-600)' }}></div>
                                 </div>
                                 <div className="space-y-1">
                                     <p className="font-medium text-gray-900">Email Address</p>
-                                    <a href="mailto:vikram@thinksolv.com" className="text-indigo-600 hover:text-indigo-700 transition-colors text-sm">
+                                    <a href="mailto:vikram@thinksolv.com" className="transition-colors text-sm" style={{ color: 'var(--primary-600)' }} onMouseEnter={(e) => e.currentTarget.style.color = 'var(--primary-700)'} onMouseLeave={(e) => e.currentTarget.style.color = 'var(--primary-600)'}>
                                         vikram@thinksolv.com
                                     </a>
                                 </div>

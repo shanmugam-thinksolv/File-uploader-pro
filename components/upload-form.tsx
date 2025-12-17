@@ -554,7 +554,7 @@ export default function UploadForm({ isPreview = false, formId, initialData }: {
                                     const roundedProgress = Math.floor(percentComplete / 10) * 10
                                     // Only update if progress increased (never decrease)
                                     const displayProgress = Math.max(roundedProgress, lastDisplayedProgress)
-                                    
+
                                     // Only update state if progress actually increased
                                     if (displayProgress > lastDisplayedProgress) {
                                         lastDisplayedProgress = displayProgress
@@ -624,7 +624,7 @@ export default function UploadForm({ isPreview = false, formId, initialData }: {
                         // Store error for this specific file
                         if (!errors[field.id]) errors[field.id] = {}
                         errors[field.id][index] = fileError.message || 'Upload failed'
-                        
+
                         // Reset progress on error
                         setUploadProgress(prev => ({
                             ...prev,
@@ -739,6 +739,9 @@ export default function UploadForm({ isPreview = false, formId, initialData }: {
                                 <br />
                                 <span className="text-sm text-gray-500 mt-2 block">
                                     Expired on {expiryDate.toLocaleDateString()} at {expiryDate.toLocaleTimeString()}
+                                </span>
+                                <span className="text-sm font-medium mt-2 block" style={{ color: 'var(--primary-600)' }}>
+                                    Contact your administrator to enable the form response.
                                 </span>
                             </CardDescription>
                         </CardHeader>
@@ -897,7 +900,9 @@ export default function UploadForm({ isPreview = false, formId, initialData }: {
                                             <input
                                                 type="checkbox"
                                                 id={q.id}
-                                                className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-600"
+                                                className="h-4 w-4 rounded border-gray-300"
+                                                style={{ accentColor: 'var(--primary-600)' }}
+                                                onFocus={(e) => e.currentTarget.style.outlineColor = 'var(--primary-600)'}
                                                 checked={!!answers[q.id]}
                                                 onChange={(e) => handleAnswerChange(q.id, e.target.checked)}
                                                 required={q.required}

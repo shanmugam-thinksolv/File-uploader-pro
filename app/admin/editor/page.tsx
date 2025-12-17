@@ -51,9 +51,9 @@ function LivePreviewSection({ q }: { q: CustomQuestion }) {
                 onClick={() => setIsOpen(!isOpen)}
                 className="flex items-center gap-2 w-full text-left focus:outline-none group"
             >
-                <Eye className="w-3.5 h-3.5 text-indigo-500" />
-                <span className="text-xs font-semibold text-indigo-600 uppercase tracking-wider flex-1">Live Preview</span>
-                <ChevronRight className={`w-4 h-4 text-gray-400 transition-transform duration-200 ${isOpen ? 'rotate-90' : ''} group-hover:text-indigo-500`} />
+                <Eye className="w-3.5 h-3.5 text-primary-500" />
+                <span className="text-xs font-semibold text-primary-600 uppercase tracking-wider flex-1">Live Preview</span>
+                <ChevronRight className={`w-4 h-4 text-gray-400 transition-transform duration-200 ${isOpen ? 'rotate-90' : ''} group-hover:text-primary-500`} />
             </button>
 
             {isOpen && (
@@ -168,7 +168,7 @@ function DriveConnectionStatus({ formData, updateField }: { formData: EditorForm
     }
 
     return (
-        <div className="mt-4 p-4 border border-indigo-100 rounded-xl bg-indigo-50/30 animate-in fade-in slide-in-from-top-2">
+        <div className="mt-4 p-4 border border-primary-100 rounded-xl bg-primary-50/30 animate-in fade-in slide-in-from-top-2">
             <GooglePickerFolderSelect formData={formData} updateField={updateField} />
         </div>
     );
@@ -518,67 +518,44 @@ function EditorContent() {
 
     return (
         <div className="min-h-screen bg-slate-50">
-            <div className={`mx-auto px-6 py-10 transition-all duration-300 max-w-3xl`}>
-                {/* Navigation & Title */}
-                <div className="mb-8 space-y-4">
-                    <Link
-                        href="/admin/dashboard"
-                        className="inline-flex items-center text-sm text-muted-foreground hover:text-gray-900 transition-colors"
-                    >
-                        <ArrowLeft className="w-4 h-4 mr-2" />
-                        Back to Dashboard
-                    </Link>
+            {/* Fixed Top Bar */}
+            <div className="sticky top-0 z-50 bg-white border-b border-gray-200 shadow-sm">
+                <div className="mx-auto px-6 py-4 max-w-[1600px]">
                     <div className="flex items-center justify-between">
-                        <h1 className="text-3xl font-bold text-gray-900 tracking-tight">{formData.title}</h1>
-                        {isSaving && (
-                            <div className="text-xs text-muted-foreground flex items-center gap-2 bg-gray-100 px-3 py-1.5 rounded-full">
-                                <Loader2 className="w-3 h-3 animate-spin text-indigo-600" />
-                                Saving...
-                            </div>
-                        )}
-                    </div>
-                </div>
-
-                <div className="relative">
-                    <div className="space-y-6">
-                        {/* Modern Sticky Action Bar */}
-                        <div className="sticky top-0 z-50 -mx-4 px-4 py-4 backdrop-blur-xl bg-white/80 border-b border-gray-200/50 shadow-sm mb-6">
-                            <div className="max-w-7xl mx-auto flex items-center justify-between">
-                                <div className="flex items-center gap-3">
-                                    <div className="flex items-center gap-2 px-3 py-1.5 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-full border border-indigo-100">
-                                        <div className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse"></div>
-                                        <span className="text-xs font-medium text-indigo-700">
-                                            {isSaving ? 'Auto-saving...' : 'All changes saved'}
-                                        </span>
-                                    </div>
-                                </div>
-
-                                <div className="flex items-center gap-3">
-                                    <Button
-                                        variant="outline"
-                                        onClick={handleSave}
-                                        disabled={loading}
-                                        className="h-10 px-6 font-medium border-gray-300 hover:border-indigo-300 hover:bg-indigo-50/50 transition-all shadow-sm hover:shadow-md"
-                                    >
-                                        <Save className="w-4 h-4 mr-2" />
-                                        {loading ? 'Saving...' : 'Save Draft'}
-                                    </Button>
-
-                                    <Dialog open={isPublishOpen} onOpenChange={setIsPublishOpen}>
-                                        <DialogTrigger asChild>
-                                            <Button className="h-10 px-8 font-semibold bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 text-white shadow-lg shadow-indigo-200 hover:shadow-xl hover:shadow-indigo-300 transition-all hover:scale-[1.02]">
-                                                <Globe className="w-4 h-4 mr-2" />
-                                                Publish
-                                            </Button>
-                                        </DialogTrigger>
+                        <div className="flex items-center gap-6">
+                            <h1 className="text-2xl font-bold text-gray-900">{formData.title}</h1>
+                        </div>
+                        <div className="flex items-center gap-3">
+                            <div className="flex items-center gap-2 px-3 py-1.5 bg-gradient-to-r from-primary-50 to-purple-50 rounded-full border border-primary-100">
+                                <div className="w-2 h-2 rounded-full bg-primary-500 animate-pulse"></div>
+                            <span className="text-xs font-medium text-primary-700">
+                                {isSaving ? 'Auto-saving...' : 'All changes saved'}
+                            </span>
+                        </div>
+                        <Button
+                            variant="outline"
+                            onClick={handleSave}
+                            disabled={loading}
+                            className="h-10 px-6 font-medium border-gray-300 hover:border-primary-300 hover:bg-primary-50/50 transition-all shadow-sm hover:shadow-md"
+                        >
+                            <Save className="w-4 h-4 mr-2" />
+                            {loading ? 'Saving...' : 'Save Draft'}
+                        </Button>
+                        <Dialog open={isPublishOpen} onOpenChange={setIsPublishOpen}>
+                            <DialogTrigger asChild>
+                                <Button className="h-10 px-8 font-semibold bg-gradient-to-r from-primary-600 to-primary-700 hover:from-primary-700 hover:to-primary-800 text-white shadow-lg shadow-primary-200 hover:shadow-xl hover:shadow-primary-300 transition-all hover:scale-[1.02]">
+                                    <Globe className="w-4 h-4 mr-2" />
+                                    Publish
+                                </Button>
+                            </DialogTrigger>
                                         <DialogContent className="sm:max-w-2xl p-0 overflow-hidden gap-0 border-0 shadow-2xl bg-white rounded-2xl">
                                             {/* Modern Header */}
                                             <div className="px-8 pt-8 pb-6 border-b border-gray-100">
                                                 <div className="flex items-start justify-between">
                                                     <div>
                                                         <DialogTitle className="text-2xl font-bold text-gray-900 flex items-center gap-3">
-                                                            <div className="p-2 bg-indigo-50 rounded-lg">
-                                                                <Globe className="w-6 h-6 text-indigo-600" />
+                                                            <div className="p-2 bg-primary-50 rounded-lg">
+                                                                <Globe className="w-6 h-6 text-primary-600" />
                                                             </div>
                                                             Publish & Share
                                                         </DialogTitle>
@@ -594,7 +571,7 @@ function EditorContent() {
                                                         <Switch
                                                             checked={formData.isAcceptingResponses}
                                                             onCheckedChange={(c) => updateField('isAcceptingResponses', c)}
-                                                            className="ml-2 data-[state=checked]:bg-indigo-600"
+                                                            className="ml-2 data-[state=checked]:bg-primary-600"
                                                         />
                                                     </div>
                                                 </div>
@@ -603,14 +580,14 @@ function EditorContent() {
                                             <div className="p-8">
                                                 <Tabs defaultValue="link" className="w-full">
                                                     <TabsList className="w-full mb-6 grid grid-cols-3">
-                                                        <TabsTrigger value="link" className="data-[state=active]:text-indigo-600">
-                                                            <Link2 className="w-4 h-4 mr-2 text-indigo-600" /> Link
+                                                        <TabsTrigger value="link" className="data-[state=active]:text-primary-600">
+                                                            <Link2 className="w-4 h-4 mr-2 text-primary-600" /> Link
                                                         </TabsTrigger>
-                                                        <TabsTrigger value="email" className="data-[state=active]:text-indigo-600">
-                                                            <Mail className="w-4 h-4 mr-2 text-indigo-600" /> Email
+                                                        <TabsTrigger value="email" className="data-[state=active]:text-primary-600">
+                                                            <Mail className="w-4 h-4 mr-2 text-primary-600" /> Email
                                                         </TabsTrigger>
-                                                        <TabsTrigger value="embed" className="data-[state=active]:text-indigo-600">
-                                                            <Code className="w-4 h-4 mr-2 text-indigo-600" /> Embed
+                                                        <TabsTrigger value="embed" className="data-[state=active]:text-primary-600">
+                                                            <Code className="w-4 h-4 mr-2 text-primary-600" /> Embed
                                                         </TabsTrigger>
                                                     </TabsList>
 
@@ -621,12 +598,12 @@ function EditorContent() {
                                                             <div className="flex gap-3">
                                                                 <div className="relative flex-1 group">
                                                                     <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none">
-                                                                        <Link2 className="h-5 w-5 text-gray-400 group-focus-within:text-indigo-500 transition-colors" />
+                                                                        <Link2 className="h-5 w-5 text-gray-400 group-focus-within:text-primary-500 transition-colors" />
                                                                     </div>
                                                                     <Input
                                                                         readOnly
                                                                         value={formId ? `${typeof window !== 'undefined' ? window.location.origin : ''}/upload/${formId}` : 'Save form first'}
-                                                                        className="pl-12 h-12 bg-gray-50 border-gray-200 focus:bg-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 transition-all font-mono text-sm rounded-xl text-gray-600"
+                                                                        className="pl-12 h-12 bg-gray-50 border-gray-200 focus:bg-white focus:border-primary-500 focus:ring-4 focus:ring-primary-500/10 transition-all font-mono text-sm rounded-xl text-gray-600"
                                                                     />
                                                                 </div>
                                                                 <Button
@@ -653,9 +630,9 @@ function EditorContent() {
                                                         <div className="grid grid-cols-2 gap-4">
                                                             <button
                                                                 onClick={handleShortenUrl}
-                                                                className="group flex items-center gap-4 p-4 rounded-xl border border-gray-200 hover:border-indigo-200 hover:bg-indigo-50/50 transition-all text-left"
+                                                                className="group flex items-center gap-4 p-4 rounded-xl border border-gray-200 hover:border-primary-200 hover:bg-primary-50/50 transition-all text-left"
                                                             >
-                                                                <div className="w-12 h-12 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 group-hover:scale-110 transition-transform">
+                                                                <div className="w-12 h-12 rounded-full bg-primary-100 flex items-center justify-center text-primary-600 group-hover:scale-110 transition-transform">
                                                                     {shortenLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Link2 className="w-5 h-5" />}
                                                                 </div>
                                                                 <div>
@@ -666,7 +643,7 @@ function EditorContent() {
 
                                                             <Dialog open={showQrCode} onOpenChange={setShowQrCode}>
                                                                 <DialogTrigger asChild>
-                                                                    <button className="group flex items-center gap-4 p-4 rounded-xl border border-gray-200 hover:border-indigo-200 hover:bg-indigo-50/50 transition-all text-left">
+                                                                    <button className="group flex items-center gap-4 p-4 rounded-xl border border-gray-200 hover:border-primary-200 hover:bg-primary-50/50 transition-all text-left">
                                                                         <div className="w-12 h-12 rounded-full bg-purple-100 flex items-center justify-center text-purple-600 group-hover:scale-110 transition-transform">
                                                                             <QrCode className="w-5 h-5" />
                                                                         </div>
@@ -740,7 +717,7 @@ function EditorContent() {
                                                                 <Copy className="w-4 h-4 mr-2" /> Copy Content
                                                             </Button>
                                                             <Button
-                                                                className="flex-1 h-11 bg-indigo-600 hover:bg-indigo-700 text-white"
+                                                                className="flex-1 h-11 bg-primary-600 hover:bg-primary-700 text-white"
                                                                 onClick={() => {
                                                                     const link = formId ? `${window.location.origin}/upload/${formId}` : 'Save form first'
                                                                     const fullBody = `${emailInviteMessage}\n\n${link}`
@@ -767,12 +744,12 @@ function EditorContent() {
                                                                     <Textarea
                                                                         readOnly
                                                                         value={formId ? `<iframe src="${typeof window !== 'undefined' ? window.location.origin : ''}/upload/${formId}" width="100%" height="800px" style="border:0; border-radius: 8px; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);"></iframe>` : 'Save form first'}
-                                                                        className="pl-12 pr-32 pb-12 min-h-[120px] bg-slate-900 border-slate-800 text-slate-100 font-mono text-xs rounded-xl focus:ring-indigo-500/50 resize-none"
+                                                                        className="pl-12 pr-32 pb-12 min-h-[120px] bg-slate-900 border-slate-800 text-slate-100 font-mono text-xs rounded-xl focus:ring-primary-500/50 resize-none"
                                                                     />
                                                                     <div className="absolute bottom-3 right-3">
                                                                         <Button
                                                                             size="sm"
-                                                                            className="h-8 bg-white text-indigo-600 hover:bg-gray-100 font-medium"
+                                                                            className="h-8 bg-white text-primary-600 hover:bg-gray-100 font-medium"
                                                                             onClick={() => {
                                                                                 const code = `<iframe src="${window.location.origin}/upload/${formId}" width="100%" height="800px" style="border:0; border-radius: 8px; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);"></iframe>`
                                                                                 navigator.clipboard.writeText(code)
@@ -799,12 +776,12 @@ function EditorContent() {
                                                         <div
                                                             onClick={() => updateField('accessLevel', 'ANYONE')}
                                                             className={`cursor-pointer relative flex items-start p-4 rounded-xl border-2 transition-all ${formData.accessLevel === 'ANYONE'
-                                                                ? 'border-indigo-600 bg-indigo-50/30'
+                                                                ? 'border-primary-600 bg-primary-50/30'
                                                                 : 'border-gray-100 hover:border-gray-200 hover:bg-gray-50'
                                                                 }`}
                                                         >
-                                                            <div className={`mt-0.5 w-5 h-5 rounded-full border flex items-center justify-center flex-shrink-0 ${formData.accessLevel === 'ANYONE' ? 'border-indigo-600' : 'border-gray-300'}`}>
-                                                                {formData.accessLevel === 'ANYONE' && <div className="w-2.5 h-2.5 rounded-full bg-indigo-600" />}
+                                                            <div className={`mt-0.5 w-5 h-5 rounded-full border flex items-center justify-center flex-shrink-0 ${formData.accessLevel === 'ANYONE' ? 'border-primary-600' : 'border-gray-300'}`}>
+                                                                {formData.accessLevel === 'ANYONE' && <div className="w-2.5 h-2.5 rounded-full bg-primary-600" />}
                                                             </div>
                                                             <div className="ml-3">
                                                                 <div className="font-semibold text-gray-900">Public</div>
@@ -815,12 +792,12 @@ function EditorContent() {
                                                         <div
                                                             onClick={() => updateField('accessLevel', 'INVITED')}
                                                             className={`cursor-pointer relative flex items-start p-4 rounded-xl border-2 transition-all ${formData.accessLevel === 'INVITED'
-                                                                ? 'border-indigo-600 bg-indigo-50/30'
+                                                                ? 'border-primary-600 bg-primary-50/30'
                                                                 : 'border-gray-100 hover:border-gray-200 hover:bg-gray-50'
                                                                 }`}
                                                         >
-                                                            <div className={`mt-0.5 w-5 h-5 rounded-full border flex items-center justify-center flex-shrink-0 ${formData.accessLevel === 'INVITED' ? 'border-indigo-600' : 'border-gray-300'}`}>
-                                                                {formData.accessLevel === 'INVITED' && <div className="w-2.5 h-2.5 rounded-full bg-indigo-600" />}
+                                                            <div className={`mt-0.5 w-5 h-5 rounded-full border flex items-center justify-center flex-shrink-0 ${formData.accessLevel === 'INVITED' ? 'border-primary-600' : 'border-gray-300'}`}>
+                                                                {formData.accessLevel === 'INVITED' && <div className="w-2.5 h-2.5 rounded-full bg-primary-600" />}
                                                             </div>
                                                             <div className="ml-3">
                                                                 <div className="font-semibold text-gray-900">Restricted</div>
@@ -859,7 +836,7 @@ function EditorContent() {
                                                 </Button>
                                                 <Button
                                                     size="lg"
-                                                    className="h-12 px-8 bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-200 transition-all hover:scale-[1.02]"
+                                                    className="h-12 px-8 bg-primary-600 hover:bg-primary-700 text-white shadow-lg shadow-primary-200 transition-all hover:scale-[1.02]"
                                                     onClick={handleSave}
                                                     disabled={loading || !session}
                                                 >
@@ -883,156 +860,162 @@ function EditorContent() {
                                             </div>
                                         </DialogContent>
                                     </Dialog>
-                                </div>
-                            </div>
                         </div>
+                    </div>
+                </div>
+            </div>
 
-                        {/* Professional Tab Navigation */}
-                        <div className="mb-8 border-b border-gray-200">
-                            <nav className="flex justify-center -mb-px space-x-8" aria-label="Tabs">
-                                {[
-                                    { name: 'General', step: 0 },
-                                    { name: 'Uploads', step: 1 },
-                                    { name: 'Organization', step: 2 },
-                                    { name: 'Access', step: 3 },
-                                    { name: 'Design', step: 4 }
-                                ].map((tab) => {
-                                    const isActive = currentStep === tab.step;
-                                    const isCompleted = currentStep > tab.step;
+            {/* Main Content Area */}
+            <div className="mx-auto px-6 py-6 max-w-[1600px]">
+                {/* Left-Right Layout: Steps on Left, Content on Right */}
+                        <div className="flex gap-6">
+                            {/* Left Sidebar - Step Navigation */}
+                            <div className="w-72 flex-shrink-0">
+                                <nav className="bg-white rounded-xl p-4 shadow-sm border border-gray-200 space-y-2 sticky top-24" aria-label="Steps">
+                                    {[
+                                        { name: 'General', step: 0 },
+                                        { name: 'Uploads', step: 1 },
+                                        { name: 'Organization', step: 2 },
+                                        { name: 'Access', step: 3 },
+                                        { name: 'Design', step: 4 }
+                                    ].map((tab) => {
+                                        const isActive = currentStep === tab.step;
+                                        const isCompleted = currentStep > tab.step;
 
-                                    return (
-                                        <button
-                                            key={tab.name}
-                                            onClick={() => setCurrentStep(tab.step)}
-                                            className={`
-                                                group relative inline-flex items-center gap-2 py-4 px-1 
-                                                border-b-2 font-medium text-sm transition-all duration-200
-                                                ${isActive
-                                                    ? 'border-gray-900 text-gray-900'
-                                                    : isCompleted
-                                                        ? 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                                                        : 'border-transparent text-gray-400 hover:text-gray-500 hover:border-gray-200'
-                                                }
-                                            `}
-                                        >
-                                            {/* Step number/checkmark */}
-                                            <span
+                                        return (
+                                            <button
+                                                key={tab.name}
+                                                onClick={() => setCurrentStep(tab.step)}
                                                 className={`
-                                                    flex items-center justify-center w-5 h-5 rounded-full text-xs font-semibold
-                                                    transition-colors duration-200
+                                                    w-full group relative flex items-center gap-3 py-3 px-4 rounded-lg
+                                                    font-medium text-sm transition-all duration-200 text-left
                                                     ${isActive
-                                                        ? 'bg-gray-900 text-white'
+                                                        ? 'bg-primary-50 text-primary-700 border-2 border-primary-200'
                                                         : isCompleted
-                                                            ? 'bg-gray-100 text-gray-600'
-                                                            : 'bg-gray-100 text-gray-400 group-hover:bg-gray-200'
+                                                            ? 'text-gray-600 hover:bg-gray-50 hover:text-gray-900 border-2 border-transparent'
+                                                            : 'text-gray-400 hover:bg-gray-50 hover:text-gray-600 border-2 border-transparent'
                                                     }
                                                 `}
                                             >
-                                                {isCompleted ? (
-                                                    <Check className="w-3 h-3" />
-                                                ) : (
-                                                    tab.step + 1
-                                                )}
-                                            </span>
+                                                {/* Step number/checkmark */}
+                                                <span
+                                                    className={`
+                                                        flex items-center justify-center w-7 h-7 rounded-full text-xs font-semibold flex-shrink-0
+                                                        transition-colors duration-200
+                                                        ${isActive
+                                                            ? 'bg-primary-600 text-white'
+                                                            : isCompleted
+                                                                ? 'bg-gray-200 text-gray-600'
+                                                                : 'bg-gray-100 text-gray-400 group-hover:bg-gray-200'
+                                                        }
+                                                    `}
+                                                >
+                                                    {isCompleted ? (
+                                                        <Check className="w-4 h-4" />
+                                                    ) : (
+                                                        tab.step + 1
+                                                    )}
+                                                </span>
 
-                                            {/* Tab label */}
-                                            <span>{tab.name}</span>
-                                        </button>
-                                    );
-                                })}
-                            </nav>
-                        </div>
+                                                {/* Step label */}
+                                                <span className="flex-1">{tab.name}</span>
+                                            </button>
+                                        );
+                                    })}
+                                    
+                                    {/* Progress indicator */}
+                                    <div className="pt-4 mt-4 border-t border-gray-200">
+                                        <div className="text-xs text-gray-500 mb-2">Step {currentStep + 1} of 5</div>
+                                        <div className="w-full bg-gray-200 rounded-full h-2">
+                                            <div 
+                                                className="bg-primary-600 h-2 rounded-full transition-all duration-300"
+                                                style={{ width: `${((currentStep + 1) / 5) * 100}%` }}
+                                            />
+                                        </div>
+                                    </div>
+                                </nav>
+                            </div>
 
-                        {/* Step 0: General Information */}
-                        {currentStep === 0 && (
+                            {/* Right Side - Content Area */}
+                            <div className="flex-1 min-w-0 space-y-6">
+                                {/* Step 0: General Information */}
+                                {currentStep === 0 && (
                             <TabTransition>
-                                <div className="bg-white rounded-2xl p-8 shadow-lg shadow-slate-200/50 border border-slate-100 hover:shadow-xl hover:shadow-slate-200/60 transition-all duration-200 space-y-8">
-                                    <div className="space-y-3">
+                                <div className="bg-white rounded-2xl p-8 shadow-lg shadow-slate-200/50 border border-slate-100 hover:shadow-xl hover:shadow-slate-200/60 transition-all duration-200 space-y-6">
+                                    <div className="space-y-2">
                                         <h2 className="text-xl font-semibold tracking-tight text-slate-900">General Information</h2>
                                         <p className="text-sm text-slate-500 leading-relaxed">Configure the basic details of your form</p>
                                     </div>
 
                                     <div className="space-y-6">
-                                        <div className="space-y-3">
-                                            <Label htmlFor="title" className="text-sm font-medium text-slate-700">Form Title</Label>
-                                            <Input
-                                                id="title"
-                                                value={formData.title}
-                                                onChange={(e) => updateField('title', e.target.value)}
-                                                className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200"
-                                                placeholder="Enter form title"
-                                            />
-                                        </div>
-                                        <div className="space-y-3">
-                                            <Label htmlFor="description" className="text-sm font-medium text-slate-700">Description</Label>
-                                            <Textarea
-                                                id="description"
-                                                className="min-h-[100px] resize-y w-full px-4 py-3 rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200"
-                                                placeholder="Enter a description for your upload form..."
-                                                value={formData.description || ''}
-                                                onChange={(e) => updateField('description', e.target.value)}
-                                            />
-                                            <p className="text-xs text-slate-400 text-right">{formData.description?.length || 0}/1000 characters</p>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {/* Form Questions Card */}
-                                <div className="mt-8 bg-white rounded-2xl p-8 shadow-lg shadow-slate-200/50 border border-slate-100 hover:shadow-xl hover:shadow-slate-200/60 transition-all duration-200 space-y-6">
-                                    <div className="flex items-center justify-between">
-                                        <div className="space-y-1">
-                                            <h2 className="text-xl font-semibold tracking-tight text-slate-900">Form Questions</h2>
-                                            <p className="text-sm text-slate-500 leading-relaxed">Ask users additional questions before they upload</p>
-                                        </div>
-                                        <Button
-                                            variant="outline"
-                                            size="sm"
-                                            onClick={addCustomQuestion}
-                                            className="px-5 py-2.5 rounded-xl border-2 border-slate-200 bg-white text-slate-700 font-medium hover:border-indigo-200 hover:bg-indigo-50 hover:text-indigo-700 transition-all duration-200 shadow-sm hover:shadow-md"
-                                        >
-                                            <Plus className="w-4 h-4 mr-2" />
-                                            Add Question
-                                        </Button>
-                                    </div>
-                                    <div className="space-y-5">
-                                        {formData.customQuestions.length === 0 ? (
-                                            <div className="text-center p-10 rounded-xl bg-slate-50 border border-slate-100">
-                                                <div className="w-12 h-12 mx-auto mb-3 rounded-xl bg-white border border-slate-200 shadow-sm flex items-center justify-center">
-                                                    <Plus className="w-5 h-5 text-slate-400" />
-                                                </div>
-                                                <h3 className="text-sm font-semibold text-slate-900 mb-1">No questions yet</h3>
-                                                <p className="text-sm text-slate-500 mb-4 max-w-xs mx-auto">
-                                                    Add custom questions to collect extra information from your uploaders.
-                                                </p>
-                                                <Button
-                                                    variant="outline"
-                                                    size="sm"
-                                                    onClick={addCustomQuestion}
-                                                    className="bg-white hover:bg-slate-50 text-indigo-600 border-slate-200 hover:border-indigo-200"
-                                                >
-                                                    Add Question
-                                                </Button>
+                                        {/* Title and Description side by side */}
+                                        <div className="grid grid-cols-2 gap-6">
+                                            <div className="space-y-3">
+                                                <Label htmlFor="title" className="text-sm font-medium text-slate-700">Form Title</Label>
+                                                <Input
+                                                    id="title"
+                                                    value={formData.title}
+                                                    onChange={(e) => updateField('title', e.target.value)}
+                                                    className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all duration-200"
+                                                    placeholder="Enter form title"
+                                                />
                                             </div>
-                                        ) : (
-                                            <div className="space-y-5">{formData.customQuestions.map((q, index) => (
-                                                <div key={q.id} className="group relative bg-gradient-to-br from-slate-50 to-slate-100/30 border border-slate-200 rounded-2xl p-6 shadow-sm hover:shadow-md hover:border-indigo-200 transition-all duration-200">
-                                                    {/* Header: Drag & Delete */}
-                                                    <div className="flex items-start justify-between mb-5">
-                                                        <div className="flex items-center gap-2">
-                                                            <div className="text-slate-300 cursor-move hover:text-slate-500 p-1.5 rounded-lg hover:bg-white transition-colors">
-                                                                <GripVertical className="w-5 h-5" />
+                                            <div className="space-y-3">
+                                                <Label htmlFor="description" className="text-sm font-medium text-slate-700">Description</Label>
+                                                <Textarea
+                                                    id="description"
+                                                    className="min-h-[100px] resize-y w-full px-4 py-3 rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all duration-200"
+                                                    placeholder="Enter a description for your upload form..."
+                                                    value={formData.description || ''}
+                                                    onChange={(e) => updateField('description', e.target.value)}
+                                                />
+                                                <p className="text-xs text-slate-400 text-right">{formData.description?.length || 0}/1000 characters</p>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Form Questions Section - Merged into General */}
+                                    <div className="border-t border-slate-200 pt-6 space-y-4">
+                                        <div className="flex items-center justify-between">
+                                            <div className="space-y-1">
+                                                <h2 className="text-xl font-semibold tracking-tight text-slate-900">Form Questions</h2>
+                                                <p className="text-sm text-slate-500 leading-relaxed">Ask users additional questions before they upload</p>
+                                            </div>
+                                        </div>
+                                        <div className="space-y-5">
+                                            {formData.customQuestions.length === 0 ? (
+                                                <div className="text-center p-6 rounded-xl bg-slate-50 border border-slate-100">
+                                                    <button
+                                                        onClick={addCustomQuestion}
+                                                        className="w-12 h-12 mx-auto mb-3 rounded-xl bg-white border border-slate-200 shadow-sm flex items-center justify-center hover:border-primary-200 hover:bg-primary-50 transition-all cursor-pointer group"
+                                                    >
+                                                        <Plus className="w-5 h-5 text-primary-600 transition-colors" />
+                                                    </button>
+                                                    <h3 className="text-sm font-semibold text-slate-900 mb-1">Add more questions</h3>
+                                                    <p className="text-sm text-slate-500 mb-4 max-w-xs mx-auto">
+                                                        No custom questions yet.
+                                                    </p>
+                                                </div>
+                                            ) : (
+                                                <div className="space-y-5">{formData.customQuestions.map((q, index) => (
+                                                    <div key={q.id} className="group relative bg-gradient-to-br from-slate-50 to-slate-100/30 border border-slate-200 rounded-2xl p-6 shadow-sm hover:shadow-md hover:border-primary-200 transition-all duration-200">
+                                                        {/* Header: Drag & Delete */}
+                                                        <div className="flex items-start justify-between mb-5">
+                                                            <div className="flex items-center gap-2">
+                                                                <div className="text-slate-300 cursor-move hover:text-slate-500 p-1.5 rounded-lg hover:bg-white transition-colors">
+                                                                    <GripVertical className="w-5 h-5" />
+                                                                </div>
+                                                                <span className="text-sm font-medium text-slate-500">Question {index + 1}</span>
                                                             </div>
-                                                            <span className="text-sm font-medium text-slate-500">Question {index + 1}</span>
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="icon"
+                                                                className="h-9 w-9 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-all"
+                                                                onClick={() => removeCustomQuestion(q.id)}
+                                                            >
+                                                                <Trash2 className="w-4 h-4" />
+                                                            </Button>
                                                         </div>
-                                                        <Button
-                                                            variant="ghost"
-                                                            size="icon"
-                                                            className="h-9 w-9 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-all"
-                                                            onClick={() => removeCustomQuestion(q.id)}
-                                                        >
-                                                            <Trash2 className="w-4 h-4" />
-                                                        </Button>
-                                                    </div>
 
                                                     {/* Core Settings Grid */}
                                                     <div className="grid gap-5 sm:grid-cols-2 mb-5">
@@ -1042,7 +1025,7 @@ function EditorContent() {
                                                                 value={q.label}
                                                                 onChange={(e) => updateCustomQuestionItem(q.id, 'label', e.target.value)}
                                                                 placeholder="e.g. What is your department?"
-                                                                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200"
+                                                                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all duration-200"
                                                             />
                                                         </div>
                                                         <div className="space-y-2">
@@ -1051,7 +1034,7 @@ function EditorContent() {
                                                                 value={q.type}
                                                                 onValueChange={(val) => updateCustomQuestionItem(q.id, 'type', val)}
                                                             >
-                                                                <SelectTrigger className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200">
+                                                                <SelectTrigger className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all duration-200">
                                                                     <SelectValue />
                                                                 </SelectTrigger>
                                                                 <SelectContent className="rounded-xl border-slate-200">
@@ -1076,7 +1059,7 @@ function EditorContent() {
                                                                     value={q.placeholder || ''}
                                                                     onChange={(e) => updateCustomQuestionItem(q.id, 'placeholder', e.target.value)}
                                                                     placeholder="e.g. Type your answer here..."
-                                                                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200"
+                                                                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all duration-200"
                                                                 />
                                                             </div>
                                                         )}
@@ -1090,7 +1073,7 @@ function EditorContent() {
                                                                         value={q.options?.join(', ') || ''}
                                                                         onChange={(e) => updateCustomQuestionItem(q.id, 'options', e.target.value.split(',').map(s => s.trim()))}
                                                                         placeholder="Option 1, Option 2, Option 3"
-                                                                        className="min-h-[80px] w-full px-4 py-3 rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200 font-mono text-sm resize-none"
+                                                                        className="min-h-[80px] w-full px-4 py-3 rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all duration-200 font-mono text-sm resize-none"
                                                                     />
                                                                     <p className="text-xs text-slate-400">Separate options with commas</p>
                                                                 </div>
@@ -1101,7 +1084,7 @@ function EditorContent() {
                                                                             checked={q.allowOther || false}
                                                                             onCheckedChange={(c) => updateCustomQuestionItem(q.id, 'allowOther', c)}
                                                                             id={`allow-other-${q.id}`}
-                                                                            className="data-[state=checked]:bg-indigo-600"
+                                                                            className="data-[state=checked]:bg-primary-600"
                                                                         />
                                                                         <Label htmlFor={`allow-other-${q.id}`} className="text-sm font-normal text-slate-600">Allow "Other" option</Label>
                                                                     </div>
@@ -1115,7 +1098,7 @@ function EditorContent() {
                                                                 checked={q.required}
                                                                 onCheckedChange={(c) => updateCustomQuestionItem(q.id, 'required', c)}
                                                                 id={`required-${q.id}`}
-                                                                className="data-[state=checked]:bg-indigo-600"
+                                                                className="data-[state=checked]:bg-primary-600"
                                                             />
                                                             <Label htmlFor={`required-${q.id}`} className="text-sm font-normal text-slate-600">Required field</Label>
                                                         </div>
@@ -1123,10 +1106,22 @@ function EditorContent() {
 
                                                     {/* Live Preview */}
                                                     <LivePreviewSection q={q} />
+                                                    </div>
+                                                ))}
                                                 </div>
-                                            ))}
-                                            </div>
-                                        )}
+                                            )}
+                                             {formData.customQuestions.length > 0 && (
+                                                 <div className="text-center p-6 rounded-xl bg-slate-50 border border-slate-100">
+                                                     <button
+                                                         onClick={addCustomQuestion}
+                                                         className="w-12 h-12 mx-auto mb-3 rounded-xl bg-white border border-slate-200 shadow-sm flex items-center justify-center hover:border-primary-200 hover:bg-primary-50 transition-all cursor-pointer group"
+                                                     >
+                                                         <Plus className="w-5 h-5 text-primary-600 transition-colors" />
+                                                     </button>
+                                                     <h3 className="text-sm font-semibold text-slate-900 mb-1">Add more questions...</h3>
+                                                 </div>
+                                             )}
+                                        </div>
                                     </div>
                                 </div>
                             </TabTransition>
@@ -1154,88 +1149,94 @@ function EditorContent() {
                                         </div>
 
                                         {/* Multiple Upload Fields */}
-                                        <div className="space-y-6 pt-4">
+                                        <div className="border-t border-slate-200 pt-6 space-y-4">
                                             <div className="flex items-center justify-between">
-                                                <Label className="text-sm font-medium text-slate-700">File Upload Fields</Label>
-                                                <Button
-                                                    variant="outline"
-                                                    size="sm"
-                                                    onClick={addUploadField}
-                                                    disabled={formData.uploadFields.length >= 3}
-                                                    className="px-5 py-2.5 rounded-xl border-2 border-slate-200 bg-white text-slate-700 font-medium hover:border-indigo-200 hover:bg-indigo-50 hover:text-indigo-700 transition-all duration-200 shadow-sm hover:shadow-md"
-                                                >
-                                                    <Plus className="w-4 h-4 mr-2" />
-                                                    Add Field
-                                                </Button>
-                                            </div>
-                                            {formData.uploadFields.map((field, index) => (
-                                                <div key={field.id} className="group relative flex items-start gap-4 bg-gradient-to-br from-slate-50 to-slate-100/30 border border-slate-200 rounded-2xl p-6 shadow-sm hover:shadow-md hover:border-indigo-200 transition-all duration-200">
-                                                    <div className="text-slate-300 cursor-move hover:text-slate-500 p-1.5 rounded-lg hover:bg-white transition-colors">
-                                                        <GripVertical className="w-5 h-5" />
-                                                    </div>
-
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="icon"
-                                                        className="absolute top-4 right-4 h-9 w-9 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-all"
-                                                        onClick={() => removeUploadField(field.id)}
-                                                    >
-                                                        <Trash2 className="w-4 h-4" />
-                                                    </Button>
-
-                                                    <div className="flex-1 space-y-5">
-                                                        <div className="grid gap-5 sm:grid-cols-2">
-                                                            <div className="space-y-2">
-                                                                <Label className="text-sm font-medium text-slate-700">Field Name</Label>
-                                                                <Input
-                                                                    value={field.label}
-                                                                    onChange={(e) => updateUploadFieldItem(field.id, 'label', e.target.value)}
-                                                                    placeholder="e.g. Resume"
-                                                                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200"
-                                                                />
-                                                            </div>
-                                                            <div className="space-y-2">
-                                                                <Label className="text-sm font-medium text-slate-700">Allowed Types</Label>
-                                                                <Select
-                                                                    value={field.allowedTypes}
-                                                                    onValueChange={(val) => updateUploadFieldItem(field.id, 'allowedTypes', val)}
-                                                                >
-                                                                    <SelectTrigger className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200">
-                                                                        <SelectValue />
-                                                                    </SelectTrigger>
-                                                                    <SelectContent className="rounded-xl border-slate-200">
-                                                                        <SelectItem value="any">Any file</SelectItem>
-                                                                        <SelectItem value="images">Images only</SelectItem>
-                                                                        <SelectItem value="docs">Documents only</SelectItem>
-                                                                    </SelectContent>
-                                                                </Select>
-                                                            </div>
-                                                        </div>
-                                                    </div>
+                                                <div className="space-y-1">
+                                                    <h2 className="text-xl font-semibold tracking-tight text-slate-900">File Upload Fields</h2>
+                                                    <p className="text-sm text-slate-500 leading-relaxed">Configure file upload fields for your form</p>
                                                 </div>
-                                            ))}
-                                            {formData.uploadFields.length === 0 && (
-                                                <div className="text-center p-12 border-2 border-dashed border-slate-200 rounded-2xl bg-slate-50/50 space-y-4">
-                                                    <div className="mx-auto w-12 h-12 bg-indigo-50 rounded-full flex items-center justify-center mb-2">
-                                                        <FilePlus className="w-6 h-6 text-indigo-600" />
-                                                    </div>
-                                                    <div className="space-y-1">
-                                                        <h3 className="text-sm font-medium text-slate-900">No file upload fields added</h3>
-                                                        <p className="text-sm text-slate-500 font-normal max-w-xs mx-auto">
-                                                            Add a field to allow users to upload files.
+                                            </div>
+                                            <div className="space-y-5">
+                                                {formData.uploadFields.length === 0 ? (
+                                                    <div className="text-center p-6 rounded-xl bg-slate-50 border border-slate-100">
+                                                        <button
+                                                            onClick={addUploadField}
+                                                            disabled={formData.uploadFields.length >= 3}
+                                                            className="w-12 h-12 mx-auto mb-3 rounded-xl bg-white border border-slate-200 shadow-sm flex items-center justify-center hover:border-primary-200 hover:bg-primary-50 transition-all cursor-pointer group"
+                                                        >
+                                                            <Plus className="w-5 h-5 text-primary-600 transition-colors" />
+                                                        </button>
+                                                        <h3 className="text-sm font-semibold text-slate-900 mb-1">Add field</h3>
+                                                        <p className="text-sm text-slate-500 mb-4 max-w-xs mx-auto">
+                                                            No file upload fields yet.
                                                         </p>
                                                     </div>
-                                                    <Button
-                                                        variant="outline"
-                                                        size="sm"
-                                                        onClick={addUploadField}
-                                                        className="mt-2 px-5 py-2.5 rounded-xl border-2 border-slate-200 bg-white text-slate-700 font-medium hover:border-indigo-200 hover:bg-indigo-50 hover:text-indigo-700 transition-all duration-200 shadow-sm hover:shadow-md"
-                                                    >
-                                                        <Plus className="w-4 h-4 mr-2" />
-                                                        Add Field
-                                                    </Button>
-                                                </div>
-                                            )}
+                                                ) : (
+                                                    <div className="space-y-5">{formData.uploadFields.map((field, index) => (
+                                                        <div key={field.id} className="group relative bg-gradient-to-br from-slate-50 to-slate-100/30 border border-slate-200 rounded-2xl p-6 shadow-sm hover:shadow-md hover:border-primary-200 transition-all duration-200">
+                                                            <div className="flex items-start justify-between mb-5">
+                                                                <div className="flex items-center gap-2">
+                                                                    <div className="text-slate-300 cursor-move hover:text-slate-500 p-1.5 rounded-lg hover:bg-white transition-colors">
+                                                                        <GripVertical className="w-5 h-5" />
+                                                                    </div>
+                                                                    <span className="text-sm font-medium text-slate-500">Field {index + 1}</span>
+                                                                </div>
+                                                                <Button
+                                                                    variant="ghost"
+                                                                    size="icon"
+                                                                    className="h-9 w-9 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-all"
+                                                                    onClick={() => removeUploadField(field.id)}
+                                                                >
+                                                                    <Trash2 className="w-4 h-4" />
+                                                                </Button>
+                                                            </div>
+
+                                                            <div className="flex-1 space-y-5">
+                                                                <div className="grid gap-5 sm:grid-cols-2">
+                                                                    <div className="space-y-2">
+                                                                        <Label className="text-sm font-medium text-slate-700">Field Name</Label>
+                                                                        <Input
+                                                                            value={field.label}
+                                                                            onChange={(e) => updateUploadFieldItem(field.id, 'label', e.target.value)}
+                                                                            placeholder="e.g. Resume"
+                                                                            className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all duration-200"
+                                                                        />
+                                                                    </div>
+                                                                    <div className="space-y-2">
+                                                                        <Label className="text-sm font-medium text-slate-700">Allowed Types</Label>
+                                                                        <Select
+                                                                            value={field.allowedTypes}
+                                                                            onValueChange={(val) => updateUploadFieldItem(field.id, 'allowedTypes', val)}
+                                                                        >
+                                                                            <SelectTrigger className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all duration-200">
+                                                                                <SelectValue />
+                                                                            </SelectTrigger>
+                                                                            <SelectContent className="rounded-xl border-slate-200">
+                                                                                <SelectItem value="any">Any file</SelectItem>
+                                                                                <SelectItem value="images">Images only</SelectItem>
+                                                                                <SelectItem value="docs">Documents only</SelectItem>
+                                                                            </SelectContent>
+                                                                        </Select>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                    </div>
+                                                )}
+                                                 {formData.uploadFields.length > 0 && (
+                                                     <div className="text-center p-6 rounded-xl bg-slate-50 border border-slate-100">
+                                                         <button
+                                                             onClick={addUploadField}
+                                                             disabled={formData.uploadFields.length >= 3}
+                                                             className="w-12 h-12 mx-auto mb-3 rounded-xl bg-white border border-slate-200 shadow-sm flex items-center justify-center hover:border-primary-200 hover:bg-primary-50 transition-all cursor-pointer group disabled:opacity-50 disabled:cursor-not-allowed"
+                                                         >
+                                                             <Plus className="w-5 h-5 text-primary-600 transition-colors" />
+                                                         </button>
+                                                         <h3 className="text-sm font-semibold text-slate-900 mb-1">Add field</h3>
+                                                     </div>
+                                                 )}
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -1261,7 +1262,7 @@ function EditorContent() {
                                             <Switch
                                                 checked={formData.enableMetadataSpreadsheet}
                                                 onCheckedChange={(c) => updateField('enableMetadataSpreadsheet', c)}
-                                                className="data-[state=checked]:bg-indigo-600"
+                                                className="data-[state=checked]:bg-primary-600"
                                             />
                                         </div>
 
@@ -1274,18 +1275,18 @@ function EditorContent() {
                                                 <Switch
                                                     checked={formData.subfolderOrganization !== "NONE"}
                                                     onCheckedChange={(c) => updateField('subfolderOrganization', c ? "DATE" : "NONE")}
-                                                    className="data-[state=checked]:bg-indigo-600"
+                                                    className="data-[state=checked]:bg-primary-600"
                                                 />
                                             </div>
 
                                             {formData.subfolderOrganization !== "NONE" && (
-                                                <div className="space-y-4 pl-6 border-l-2 border-indigo-100 animate-in fade-in slide-in-from-top-2 duration-200">
+                                                <div className="space-y-4 pl-6 border-l-2 border-primary-100 animate-in fade-in slide-in-from-top-2 duration-200">
                                                     <div className="space-y-3">
                                                         <Label className="text-sm font-medium text-slate-700">Subfolder Name Pattern</Label>
                                                         <Input
                                                             value={formData.customSubfolderField ?? "{Date} {Uploader Name}"}
                                                             onChange={(e) => updateField('customSubfolderField', e.target.value)}
-                                                            className="font-mono text-sm w-full px-4 py-3 rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200"
+                                                            className="font-mono text-sm w-full px-4 py-3 rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all duration-200"
                                                         />
                                                         <div className="flex flex-wrap gap-2 pt-1">
                                                             {['{Date}', '{Uploader Name}', '{Form Title}', '{Email}'].map((tag) => {
@@ -1299,7 +1300,7 @@ function EditorContent() {
                                                                         size="sm"
                                                                         type="button"
                                                                         className={`h-auto px-3 py-1.5 text-xs rounded-lg font-medium transition-all shadow-sm ${isSelected
-                                                                            ? "bg-indigo-50 text-indigo-600 border-indigo-200 hover:bg-indigo-100 hover:border-indigo-300"
+                                                                            ? "bg-primary-50 text-primary-600 border-primary-200 hover:bg-primary-100 hover:border-primary-300"
                                                                             : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50 hover:text-slate-900 hover:border-slate-300"
                                                                             }`}
                                                                         onClick={() => {
@@ -1348,7 +1349,7 @@ function EditorContent() {
                                                 onClick={() => setShowLivePreview(true)}
                                                 size="sm"
                                                 variant="outline"
-                                                className="px-4 py-2 rounded-xl border-2 border-indigo-100 bg-indigo-50 text-indigo-600 font-medium hover:bg-indigo-100 hover:border-indigo-200 transition-all shadow-sm"
+                                                className="px-4 py-2 rounded-xl border-2 border-primary-100 bg-primary-50 text-primary-600 font-medium hover:bg-primary-100 hover:border-primary-200 transition-all shadow-sm"
                                             >
                                                 <Eye className="w-4 h-4 mr-2" />
                                                 View Preview
@@ -1384,8 +1385,8 @@ function EditorContent() {
                                                             </div>
                                                         ) : (
                                                             <label className="cursor-pointer group">
-                                                                <div className={`flex items-center gap-2 px-5 py-2.5 rounded-xl border-2 transition-all ${isDraggingLogo ? 'border-indigo-500 bg-indigo-50 text-indigo-600' : 'border-slate-200 bg-white hover:border-indigo-200 hover:bg-slate-50'}`}>
-                                                                    <Upload className="w-4 h-4 text-slate-400 group-hover:text-indigo-500 transition-colors" />
+                                                                <div className={`flex items-center gap-2 px-5 py-2.5 rounded-xl border-2 transition-all ${isDraggingLogo ? 'border-primary-500 bg-primary-50 text-primary-600' : 'border-slate-200 bg-white hover:border-primary-200 hover:bg-slate-50'}`}>
+                                                                    <Upload className="w-4 h-4 text-slate-400 group-hover:text-primary-500 transition-colors" />
                                                                     <span className="text-sm font-medium text-slate-600 group-hover:text-slate-900">Upload Logo</span>
                                                                 </div>
                                                                 <input
@@ -1423,8 +1424,8 @@ function EditorContent() {
                                                             </div>
                                                         ) : (
                                                             <label className="cursor-pointer group">
-                                                                <div className={`flex items-center gap-2 px-5 py-2.5 rounded-xl border-2 transition-all ${isDraggingCover ? 'border-indigo-500 bg-indigo-50 text-indigo-600' : 'border-slate-200 bg-white hover:border-indigo-200 hover:bg-slate-50'}`}>
-                                                                    <Upload className="w-4 h-4 text-slate-400 group-hover:text-indigo-500 transition-colors" />
+                                                                <div className={`flex items-center gap-2 px-5 py-2.5 rounded-xl border-2 transition-all ${isDraggingCover ? 'border-primary-500 bg-primary-50 text-primary-600' : 'border-slate-200 bg-white hover:border-primary-200 hover:bg-slate-50'}`}>
+                                                                    <Upload className="w-4 h-4 text-slate-400 group-hover:text-primary-500 transition-colors" />
                                                                     <span className="text-sm font-medium text-slate-600 group-hover:text-slate-900">Upload Cover</span>
                                                                 </div>
                                                                 <input
@@ -1461,7 +1462,7 @@ function EditorContent() {
                                                             type="text"
                                                             value={formData.primaryColor || "#000000"}
                                                             onChange={(e) => updateField('primaryColor', e.target.value)}
-                                                            className="w-32 px-4 py-2.5 rounded-xl border border-slate-200 bg-white font-mono text-sm uppercase focus:ring-2 focus:ring-indigo-500"
+                                                            className="w-32 px-4 py-2.5 rounded-xl border border-slate-200 bg-white font-mono text-sm uppercase focus:ring-2 focus:ring-primary-500"
                                                         />
                                                     </div>
                                                 </div>
@@ -1481,7 +1482,7 @@ function EditorContent() {
                                                             type="text"
                                                             value={formData.backgroundColor || "#ffffff"}
                                                             onChange={(e) => updateField('backgroundColor', e.target.value)}
-                                                            className="w-32 px-4 py-2.5 rounded-xl border border-slate-200 bg-white font-mono text-sm uppercase focus:ring-2 focus:ring-indigo-500"
+                                                            className="w-32 px-4 py-2.5 rounded-xl border border-slate-200 bg-white font-mono text-sm uppercase focus:ring-2 focus:ring-primary-500"
                                                         />
                                                     </div>
                                                 </div>
@@ -1494,7 +1495,7 @@ function EditorContent() {
                                                         value={formData.cardStyle || "shadow"}
                                                         onValueChange={(val) => updateField('cardStyle', val as "shadow" | "flat" | "border")}
                                                     >
-                                                        <SelectTrigger className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-white focus:ring-2 focus:ring-indigo-500">
+                                                        <SelectTrigger className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-white focus:ring-2 focus:ring-primary-500">
                                                             <SelectValue />
                                                         </SelectTrigger>
                                                         <SelectContent className="rounded-xl border-slate-200">
@@ -1519,7 +1520,7 @@ function EditorContent() {
                                                                 key={option.value}
                                                                 onClick={() => updateField('borderRadius', option.value as any)}
                                                                 className={`flex-1 py-2 text-xs font-medium rounded-lg transition-all ${(formData.borderRadius || "md") === option.value
-                                                                    ? "bg-white text-indigo-600 shadow-sm ring-1 ring-slate-200"
+                                                                    ? "bg-white text-primary-600 shadow-sm ring-1 ring-slate-200"
                                                                     : "text-slate-500 hover:text-slate-900 hover:bg-white/50"
                                                                     }`}
                                                             >
@@ -1540,7 +1541,7 @@ function EditorContent() {
                                     <DialogContent className="max-w-4xl h-[80vh] p-0 overflow-hidden gap-0">
                                         <DialogHeader className="px-8 pt-6 pb-4 border-b border-gray-100">
                                             <DialogTitle className="text-xl font-bold flex items-center gap-2">
-                                                <Eye className="w-5 h-5 text-indigo-600" />
+                                                <Eye className="w-5 h-5 text-primary-600" />
                                                 Live Preview
                                             </DialogTitle>
                                             <DialogDescription>
@@ -1584,7 +1585,7 @@ function EditorContent() {
                                                                 <input
                                                                     type="text"
                                                                     placeholder="Enter your name..."
-                                                                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+                                                                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white"
                                                                     disabled
                                                                 />
                                                             </div>
@@ -1593,7 +1594,7 @@ function EditorContent() {
                                                                 <input
                                                                     type="email"
                                                                     placeholder="your.email@example.com"
-                                                                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+                                                                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white"
                                                                     disabled
                                                                 />
                                                             </div>
@@ -1630,53 +1631,24 @@ function EditorContent() {
                         )}
 
 
-                        {/* Sticky Bottom Navigation */}
-                        <div className="sticky bottom-0 -mx-6 -mb-10 px-6 py-4 bg-white/80 backdrop-blur-xl border-t border-slate-200/60 flex justify-between items-center z-40 mt-8 transition-all duration-200">
-                            <div className="text-sm text-slate-500 font-medium">
-                                Step {currentStep + 1} of 5
-                            </div>
-                            <div className="flex gap-3">
-                                {currentStep > 0 && (
-                                    <Button
-                                        variant="outline"
-                                        onClick={() => setCurrentStep(prev => prev - 1)}
-                                        className="h-11 px-6 rounded-xl border-2 border-slate-200 text-slate-600 font-medium hover:border-indigo-200 hover:bg-indigo-50 hover:text-indigo-600 transition-all"
-                                    >
-                                        <ArrowLeft className="w-4 h-4 mr-2" />
-                                        Back
-                                    </Button>
-                                )}
-
-                                {currentStep < 4 && (
-                                    <Button
-                                        className="h-11 px-8 rounded-xl bg-gradient-to-r from-indigo-600 to-indigo-700 text-white font-semibold shadow-lg shadow-indigo-500/20 hover:shadow-xl hover:shadow-indigo-500/30 hover:scale-[1.02] transition-all"
-                                        onClick={() => setCurrentStep(prev => prev + 1)}
-                                    >
-                                        Next
-                                        <ChevronRight className="w-4 h-4 ml-2" />
-                                    </Button>
-                                )}
-                            </div>
-                        </div>
-
                     </div>
                 </div>
+            </div>
 
-                {/* Message Modal */}
-                <Dialog open={messageModal.isOpen} onOpenChange={(open) => setMessageModal(prev => ({ ...prev, isOpen: open }))}>
-                    <DialogContent>
-                        <DialogHeader>
-                            <DialogTitle className={messageModal.type === 'error' ? 'text-red-600' : 'text-green-600'}>
-                                {messageModal.title}
-                            </DialogTitle>
-                            <DialogDescription>
-                                {messageModal.message}
-                            </DialogDescription>
-                        </DialogHeader>
-                    </DialogContent>
-                </Dialog>
-            </div >
-        </div >
+            {/* Message Modal */}
+            <Dialog open={messageModal.isOpen} onOpenChange={(open) => setMessageModal(prev => ({ ...prev, isOpen: open }))}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle className={messageModal.type === 'error' ? 'text-red-600' : 'text-green-600'}>
+                            {messageModal.title}
+                        </DialogTitle>
+                        <DialogDescription>
+                            {messageModal.message}
+                        </DialogDescription>
+                    </DialogHeader>
+                </DialogContent>
+            </Dialog>
+        </div>
     )
 }
 

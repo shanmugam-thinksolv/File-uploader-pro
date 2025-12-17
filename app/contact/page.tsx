@@ -9,7 +9,7 @@ import { Footer } from "@/components/footer"
 
 export default function ContactPage() {
     return (
-        <div className="min-h-screen bg-white text-gray-900 font-sans selection:bg-indigo-100 flex flex-col">
+        <div className="min-h-screen bg-white text-gray-900 font-sans selection:bg-primary-100 flex flex-col">
             {/* Background */}
             <div className="absolute inset-0 -z-10 h-full w-full bg-white bg-[linear-gradient(to_right,#f0f0f0_1px,transparent_1px),linear-gradient(to_bottom,#f0f0f0_1px,transparent_1px)] bg-[size:6rem_4rem]">
                 <div className="absolute bottom-0 left-0 right-0 top-0 bg-[radial-gradient(circle_800px_at_100%_200px,#d5c5ff,transparent)]"></div>
@@ -21,7 +21,7 @@ export default function ContactPage() {
                     <div className="px-6 h-16 flex items-center justify-between">
                         <div className="flex items-center gap-3">
                             <Link href="/" className="flex items-center gap-3">
-                                <div className="w-9 h-9 bg-gradient-to-br from-indigo-600 to-violet-600 rounded-xl flex items-center justify-center shadow-indigo-200 shadow-md">
+                                <div className="w-9 h-9 bg-primary-600 rounded-xl flex items-center justify-center shadow-primary-200 shadow-md">
                                     <span className="text-white font-bold text-lg">F</span>
                                 </div>
                                 <span className="font-bold text-lg text-gray-900 tracking-tight">File Uploader Pro</span>
@@ -29,11 +29,11 @@ export default function ContactPage() {
                         </div>
 
                         <nav className="hidden md:flex items-center gap-8">
-                            <Link href="/" className="text-sm font-medium text-gray-600 hover:text-indigo-600 transition-colors">
+                            <Link href="/" className="text-sm font-medium text-gray-600 hover:text-primary-600 transition-colors">
                                 Home
                             </Link>
                             <Link href="/admin/login">
-                                <Button className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-full px-6 shadow-md hover:shadow-lg transition-all">
+                                <Button className="bg-primary-600 hover:bg-primary-700 text-white rounded-full px-6 shadow-md hover:shadow-lg transition-all">
                                     Get Started
                                 </Button>
                             </Link>
@@ -60,7 +60,7 @@ export default function ContactPage() {
                             <h3 className="text-xl font-bold text-gray-900 mb-6">Contact Information</h3>
                             <div className="space-y-6">
                                 <div className="flex items-start gap-4">
-                                    <div className="w-10 h-10 bg-indigo-50 rounded-full flex items-center justify-center text-indigo-600 shrink-0">
+                                    <div className="w-10 h-10 bg-primary-50 rounded-full flex items-center justify-center text-primary-600 shrink-0">
                                         <Mail className="w-5 h-5" />
                                     </div>
                                     <div>
@@ -69,7 +69,7 @@ export default function ContactPage() {
                                     </div>
                                 </div>
                                 <div className="flex items-start gap-4">
-                                    <div className="w-10 h-10 bg-indigo-50 rounded-full flex items-center justify-center text-indigo-600 shrink-0">
+                                    <div className="w-10 h-10 bg-primary-50 rounded-full flex items-center justify-center text-primary-600 shrink-0">
                                         <Phone className="w-5 h-5" />
                                     </div>
                                     <div>
@@ -78,7 +78,7 @@ export default function ContactPage() {
                                     </div>
                                 </div>
                                 <div className="flex items-start gap-4">
-                                    <div className="w-10 h-10 bg-indigo-50 rounded-full flex items-center justify-center text-indigo-600 shrink-0">
+                                    <div className="w-10 h-10 bg-primary-50 rounded-full flex items-center justify-center text-primary-600 shrink-0">
                                         <MapPin className="w-5 h-5" />
                                     </div>
                                     <div>
@@ -111,7 +111,7 @@ export default function ContactPage() {
                                 <label htmlFor="message" className="text-sm font-medium text-gray-700">Message</label>
                                 <Textarea id="message" placeholder="How can we help you?" className="min-h-[120px]" />
                             </div>
-                            <Button className="w-full bg-indigo-600 hover:bg-indigo-700 text-white h-11 rounded-lg">
+                            <Button className="w-full bg-primary-600 hover:bg-primary-700 text-white h-11 rounded-lg">
                                 Send Message
                             </Button>
                         </form>

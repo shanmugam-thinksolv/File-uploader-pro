@@ -33,10 +33,13 @@ export default async function UploadPage({ params }: { params: Promise<{ formId:
                             </div>
                             <h1 className="text-2xl font-bold text-orange-600 mb-2">Form Expired</h1>
                             <p className="text-gray-600 mb-4">
-                                This form is no longer accepting submissions.
+                                This form has expired. Please update the expiry date in the form editor to enable it again.
                             </p>
-                            <p className="text-sm text-gray-500">
+                            <p className="text-sm text-gray-500 mb-2">
                                 The form expired on {expiryDate.toLocaleDateString()} at {expiryDate.toLocaleTimeString()}
+                            </p>
+                            <p className="text-sm text-primary-600 font-medium">
+                                Contact your administrator to enable the form response.
                             </p>
                         </div>
                     </div>

@@ -227,10 +227,10 @@ export function GooglePickerFolderSelect({ formData, updateField }: GooglePicker
                         </Tooltip>
                     </div>
                     {formData.driveFolderName ? (
-                        <p className="text-sm text-muted-foreground">
+                            <p className="text-sm text-muted-foreground">
                             Files will be saved to your selected folder
                             {formData.driveType === 'SHARED_DRIVE' && (
-                                <span className="ml-1 text-indigo-600 font-medium">(Shared Drive)</span>
+                                <span className="ml-1 font-medium" style={{ color: 'var(--primary-600)' }}>(Shared Drive)</span>
                             )}
                             {formData.driveType === 'MY_DRIVE' && (
                                 <span className="ml-1 text-gray-600 font-medium">(My Drive)</span>
@@ -243,14 +243,14 @@ export function GooglePickerFolderSelect({ formData, updateField }: GooglePicker
                     )}
                 </div>
 
-                {formData.driveFolderName ? (
+                        {formData.driveFolderName ? (
                     <div className="flex items-center gap-2">
                         <div className="flex items-center gap-2 text-sm text-green-600 bg-green-50 px-3 py-1.5 rounded-md border border-green-100">
                             <Folder className="w-4 h-4" />
                             <span className="font-medium truncate max-w-[150px]">{formData.driveFolderName}</span>
                         </div>
                         {formData.driveType === 'SHARED_DRIVE' && (
-                            <div className="flex items-center gap-1 text-xs text-indigo-600 bg-indigo-50 px-2 py-1 rounded-md border border-indigo-100">
+                            <div className="flex items-center gap-1 text-xs bg-primary-50 px-2 py-1 rounded-md border border-primary-100" style={{ color: 'var(--primary-600)' }}>
                                 <HardDrive className="w-3 h-3" />
                                 <span className="font-medium">Shared Drive</span>
                             </div>

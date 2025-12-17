@@ -7,7 +7,7 @@ import { useRouter, usePathname } from "next/navigation"
 
 import { Button } from "@/components/ui/button"
 import { Switch } from "@/components/ui/switch"
-import { Plus, FileText, Loader2, ExternalLink, AlertTriangle, X, CheckCircle, Clock, Pencil } from "lucide-react"
+import { Plus, FileText, Loader2, ExternalLink, AlertTriangle, X, CheckCircle, Clock } from "lucide-react"
 
 export default function AdminDashboard() {
     const { data: session, status } = useSession()
@@ -38,61 +38,23 @@ export default function AdminDashboard() {
 
     const fetchForms = useCallback(async () => {
         try {
-            // 1. Fetch forms associated with the logged-in account
-            let accountForms: any[] = []
-            try {
-                const res = await fetch('/api/forms')
-                if (res.ok) {
-                    const data = await res.json()
-                    if (Array.isArray(data)) {
-                        accountForms = data
-                    }
-                }
-            } catch (err) {
-                console.error('Failed to fetch account forms', err)
+            const res = await fetch('/api/forms')
+            const data = await res.json()
+            
+            // Handle error responses
+            if (!res.ok) {
+                console.error('API error:', data.error || 'Failed to fetch forms')
+                setForms([])
+                return
             }
-
-            // 2. Fetch forms tracked in localStorage (for resilience)
-            let localForms: any[] = []
-            try {
-                const savedIdsString = localStorage.getItem('my_form_ids')
-                if (savedIdsString) {
-                    const savedIds: string[] = JSON.parse(savedIdsString)
-
-                    // Filter out IDs we already have
-                    const missingIds = savedIds.filter(id => !accountForms.some(f => f.id === id))
-
-                    if (missingIds.length > 0) {
-                        const results = await Promise.all(
-                            missingIds.map(async (id) => {
-                                try {
-                                    const res = await fetch(`/api/forms/${id}`)
-                                    if (res.ok) return await res.json()
-                                    return null
-                                } catch {
-                                    return null
-                                }
-                            })
-                        )
-                        localForms = results.filter(f => f !== null)
-                    }
-                }
-            } catch (e) {
-                console.error('Failed to fetch local forms', e)
+            
+            // Ensure data is an array
+            if (Array.isArray(data)) {
+                setForms(data)
+            } else {
+                console.error('API returned non-array data:', data)
+                setForms([])
             }
-
-            // 3. Merge and deduplicate
-            const allForms = [...accountForms]
-            localForms.forEach(form => {
-                if (!allForms.some(f => f.id === form.id)) {
-                    allForms.push(form)
-                }
-            })
-
-            // Sort by createdAt desc
-            allForms.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-
-            setForms(allForms)
         } catch (error) {
             console.error('Failed to fetch forms', error)
             setForms([])
@@ -244,7 +206,7 @@ export default function AdminDashboard() {
                         const expired = isFormExpired(form)
                         // If form is expired, force isAcceptingResponses to false
                         const effectiveStatus = expired ? false : form.isAcceptingResponses
-
+                        
                         return (
                             <div
                                 key={form.id}
@@ -264,44 +226,43 @@ export default function AdminDashboard() {
                                         </span>
                                     </div>
 
-                                    <span className="text-sm text-gray-400 hidden sm:inline">•</span>
-                                    <p className="text-sm text-gray-500">
-                                        Created on {formatDate(form.createdAt)} • {form._count?.submissions || 0} Submissions
-                                    </p>
-                                </div>
-
-                                <div className="flex items-center gap-2">
-                                    <Link href={`/upload/${form.id}`} target="_blank">
-                                        <Button variant="outline" size="sm" className="h-9 bg-white hover:bg-gray-50 text-gray-700 border-gray-200">
-                                            <ExternalLink className="w-4 h-4 mr-2 text-gray-500" />
-                                            Public Link
-                                        </Button>
-                                    </Link>
-                                    <Link href={`/admin/uploads?formId=${form.id}`}>
-                                        <Button variant="outline" size="sm" className="h-9 bg-white hover:bg-gray-50 text-gray-700 border-gray-200">
-                                            <FileText className="w-4 h-4 mr-2 text-gray-500" />
-                                            View Uploads
-                                        </Button>
-                                    </Link>
-                                    <Link href={`/admin/editor?id=${form.id}&tab=configuration`}>
-                                        <Button variant="outline" size="sm" className="h-9 bg-white hover:bg-gray-50 text-gray-700 border-gray-200 px-4">
-                                            <Pencil className="w-4 h-4 mr-2 text-gray-500" />
-                                            Edit
-                                        </Button>
-                                    </Link>
-                                    <button
-                                        className="h-9 text-red-600 hover:text-red-700 hover:bg-red-50 px-4 text-sm font-medium rounded-md transition-colors"
-                                        onClick={(e) => {
-                                            e.preventDefault()
-                                            e.stopPropagation()
-                                            openDeleteModal(form.id, form.isAcceptingResponses)
-                                        }}
-                                        type="button"
-                                    >
-                                        Delete
-                                    </button>
-                                </div>
+                                <span className="text-sm text-gray-400 hidden sm:inline">•</span>
+                                <p className="text-sm text-gray-500">
+                                    Created on {formatDate(form.createdAt)} • {form._count?.submissions || 0} Submissions
+                                </p>
                             </div>
+
+                            <div className="flex items-center gap-2">
+                                <Link href={`/upload/${form.id}`} target="_blank">
+                                    <Button variant="outline" size="sm" className="h-9 bg-white hover:bg-gray-50 text-gray-700 border-gray-200">
+                                        <ExternalLink className="w-4 h-4 mr-2 text-gray-500" />
+                                        Public Link
+                                    </Button>
+                                </Link>
+                                <Link href={`/admin/uploads?formId=${form.id}`}>
+                                    <Button variant="outline" size="sm" className="h-9 bg-white hover:bg-gray-50 text-gray-700 border-gray-200">
+                                        <FileText className="w-4 h-4 mr-2 text-gray-500" />
+                                        View Uploads
+                                    </Button>
+                                </Link>
+                                <Link href={`/admin/editor?id=${form.id}&tab=configuration`}>
+                                    <Button variant="outline" size="sm" className="h-9 bg-white hover:bg-gray-50 text-gray-700 border-gray-200 px-4">
+                                        Edit
+                                    </Button>
+                                </Link>
+                                <button
+                                    className="h-9 text-red-600 hover:text-red-700 hover:bg-red-50 px-4 text-sm font-medium rounded-md transition-colors"
+                                    onClick={(e) => {
+                                        e.preventDefault()
+                                        e.stopPropagation()
+                                        openDeleteModal(form.id, form.isAcceptingResponses)
+                                    }}
+                                    type="button"
+                                >
+                                    Delete
+                                </button>
+                            </div>
+                        </div>
                         )
                     })}
                 </div>
@@ -390,12 +351,13 @@ export default function AdminDashboard() {
                         </button>
 
                         <div className="flex justify-center mb-4">
-                            <div className={`w-16 h-16 rounded-full flex items-center justify-center ${messageModal.type === 'expired'
-                                    ? 'bg-orange-100'
-                                    : messageModal.type === 'error'
-                                        ? 'bg-red-100'
+                            <div className={`w-16 h-16 rounded-full flex items-center justify-center ${
+                                messageModal.type === 'expired' 
+                                    ? 'bg-orange-100' 
+                                    : messageModal.type === 'error' 
+                                        ? 'bg-red-100' 
                                         : 'bg-green-100'
-                                }`}>
+                            }`}>
                                 {messageModal.type === 'expired' ? (
                                     <Clock className="w-8 h-8 text-orange-600" />
                                 ) : messageModal.type === 'error' ? (
@@ -417,12 +379,13 @@ export default function AdminDashboard() {
                         <div className="flex justify-center">
                             <Button
                                 onClick={() => setMessageModal(prev => ({ ...prev, isOpen: false }))}
-                                className={`min-w-[120px] h-11 ${messageModal.type === 'expired'
+                                className={`min-w-[120px] h-11 ${
+                                    messageModal.type === 'expired'
                                         ? 'bg-orange-600 hover:bg-orange-700'
                                         : messageModal.type === 'error'
                                             ? 'bg-red-600 hover:bg-red-700'
                                             : 'bg-green-600 hover:bg-green-700'
-                                    }`}
+                                }`}
                             >
                                 Okay
                             </Button>

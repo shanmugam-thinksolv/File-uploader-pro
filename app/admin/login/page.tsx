@@ -87,12 +87,12 @@ export default function AdminLoginPage() {
             <Card className="w-full max-w-md shadow-xl border-0">
                 <CardHeader className="space-y-1 text-center pb-2">
                     <div className="flex justify-center mb-6">
-                        <div className="bg-indigo-600 p-2 rounded-lg shadow-sm">
+                        <div className="p-2 rounded-lg shadow-sm" style={{ backgroundColor: 'var(--primary-600)' }}>
                             <Lock className="w-6 h-6 text-white" />
                         </div>
                     </div>
                     <CardTitle className="text-2xl font-bold tracking-tight text-gray-900">
-                        {mode === "login" ? "Welcome back" : "Create an account"}
+                        {mode === "login" ? "Welcome" : "Create an account"}
                     </CardTitle>
                     <CardDescription className="text-gray-500">
                         {mode === "login"
@@ -143,7 +143,10 @@ export default function AdminLoginPage() {
                                             variant="ghost"
                                             size="sm"
                                             onClick={() => setStep("email")}
-                                            className="text-indigo-600 hover:text-indigo-700 h-auto p-0 px-2 font-medium"
+                                            className="h-auto p-0 px-2 font-medium"
+                                            style={{ color: 'var(--primary-600)' }}
+                                            onMouseEnter={(e) => e.currentTarget.style.color = 'var(--primary-700)'}
+                                            onMouseLeave={(e) => e.currentTarget.style.color = 'var(--primary-600)'}
                                             type="button"
                                         >
                                             Edit
@@ -162,7 +165,7 @@ export default function AdminLoginPage() {
                             )}
                         </div>
 
-                        <Button className="w-full h-11 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold" type="submit" disabled={isLoading}>
+                        <Button className="w-full h-11 text-white font-semibold" type="submit" disabled={isLoading} style={{ backgroundColor: 'var(--primary-600)' }} onMouseEnter={(e) => !isLoading && (e.currentTarget.style.backgroundColor = 'var(--primary-700)')} onMouseLeave={(e) => !isLoading && (e.currentTarget.style.backgroundColor = 'var(--primary-600)')}>
                             {isLoading
                                 ? "Processing..."
                                 : step === "email"
@@ -177,7 +180,10 @@ export default function AdminLoginPage() {
                         {mode === "login" ? "Don't have an account? " : "Already have an account? "}
                         <button
                             onClick={toggleMode}
-                            className="font-semibold text-indigo-600 hover:text-indigo-500 hover:underline focus:outline-none"
+                            className="font-semibold hover:underline focus:outline-none"
+                            style={{ color: 'var(--primary-600)' }}
+                            onMouseEnter={(e) => e.currentTarget.style.color = 'var(--primary-500)'}
+                            onMouseLeave={(e) => e.currentTarget.style.color = 'var(--primary-600)'}
                         >
                             {mode === "login" ? "Sign up" : "Log in"}
                         </button>
