@@ -63,10 +63,13 @@ export async function getOrCreateMetadataSpreadsheet(
     formTitle: string,
     driveFolderId: string | null
 ): Promise<string> {
-    const drive = await getDriveClient(userId)
-    const sheets = await getSheetsClient(userId)
-    
-    const spreadsheetName = `${formTitle} - Upload Metadata`
+    try {
+        console.log(`[Spreadsheet] Getting or creating spreadsheet for form: ${formTitle} (${formId})`)
+        
+        const drive = await getDriveClient(userId)
+        const sheets = await getSheetsClient(userId)
+        
+        const spreadsheetName = `${formTitle} - Upload Metadata`
     
     // Determine the target folder (same logic as file uploads)
     let targetFolderId = driveFolderId
@@ -77,7 +80,9 @@ export async function getOrCreateMetadataSpreadsheet(
         const folderResponse = await drive.files.list({
             q: q,
             fields: 'files(id)',
-            pageSize: 1
+            pageSize: 1,
+            supportsAllDrives: true,
+            includeItemsFromAllDrives: true
         })
         
         if (folderResponse.data.files && folderResponse.data.files.length > 0) {
@@ -92,7 +97,8 @@ export async function getOrCreateMetadataSpreadsheet(
             
             const folder = await drive.files.create({
                 requestBody: folderMetadata,
-                fields: 'id'
+                fields: 'id',
+                supportsAllDrives: true
             })
             targetFolderId = folder.data.id!
         }
@@ -108,7 +114,9 @@ export async function getOrCreateMetadataSpreadsheet(
     const searchResponse = await drive.files.list({
         q: searchQuery,
         fields: 'files(id, name)',
-        pageSize: 1
+        pageSize: 1,
+        supportsAllDrives: true,
+        includeItemsFromAllDrives: true
     })
     
     if (searchResponse.data.files && searchResponse.data.files.length > 0) {
@@ -138,7 +146,8 @@ export async function getOrCreateMetadataSpreadsheet(
             fileId: spreadsheetId,
             addParents: targetFolderId,
             removeParents: 'root',
-            fields: 'id, parents'
+            fields: 'id, parents',
+            supportsAllDrives: true
         })
     }
     
@@ -211,6 +220,18 @@ export async function getOrCreateMetadataSpreadsheet(
     })
     
     return spreadsheetId
+    } catch (error: any) {
+        console.error('[Spreadsheet] Error in getOrCreateMetadataSpreadsheet:', error)
+        console.error('[Spreadsheet] Error details:', {
+            message: error.message,
+            code: error.code,
+            response: error.response?.data,
+            userId,
+            formId,
+            formTitle
+        })
+        throw error // Re-throw so caller knows it failed
+    }
 }
 
 /**
@@ -231,12 +252,16 @@ export async function appendSubmissionToSpreadsheet(
     }
 ): Promise<void> {
     try {
+        console.log(`[Spreadsheet] Starting spreadsheet append for form: ${formTitle} (${formId})`)
+        
         const spreadsheetId = await getOrCreateMetadataSpreadsheet(
             userId,
             formId,
             formTitle,
             driveFolderId
         )
+        
+        console.log(`[Spreadsheet] Got spreadsheet ID: ${spreadsheetId}`)
         
         const sheets = await getSheetsClient(userId)
         
@@ -262,6 +287,8 @@ export async function appendSubmissionToSpreadsheet(
             metadataText
         ]
         
+        console.log(`[Spreadsheet] Appending row data:`, rowData)
+        
         // Append the row
         await sheets.spreadsheets.values.append({
             spreadsheetId,
@@ -273,9 +300,15 @@ export async function appendSubmissionToSpreadsheet(
             }
         })
         
-        console.log(`Successfully appended submission to spreadsheet: ${spreadsheetId}`)
-    } catch (error) {
-        console.error('Error appending to spreadsheet:', error)
+        console.log(`[Spreadsheet] Successfully appended submission to spreadsheet: ${spreadsheetId}`)
+    } catch (error: any) {
+        console.error('[Spreadsheet] Error appending to spreadsheet:', error)
+        console.error('[Spreadsheet] Error details:', {
+            message: error.message,
+            code: error.code,
+            response: error.response?.data,
+            stack: error.stack
+        })
         // Don't throw - we don't want spreadsheet errors to break submissions
         // Just log the error
     }

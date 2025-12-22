@@ -51,15 +51,33 @@ function UploadsContent() {
             setLoading(true)
             const url = formId ? `/api/submissions?formId=${formId}` : '/api/submissions'
             const res = await fetch(url)
-            const data = await res.json()
-            if (Array.isArray(data)) {
-                setSubmissions(data)
-            } else {
+
+            // If the API failed, log once and fall back to empty list
+            if (!res.ok) {
+                console.error('Failed to fetch submissions:', res.status, res.statusText)
                 setSubmissions([])
-                console.error('Fetched data is not an array:', data)
+                return
+            }
+
+            const data = await res.json()
+
+            // Support both raw array and `{ submissions: [...] }` shapes just in case
+            const submissionsData = Array.isArray(data)
+                ? data
+                : Array.isArray((data as any)?.submissions)
+                    ? (data as any).submissions
+                    : []
+
+            if (!Array.isArray(submissionsData)) {
+                // Final safety net – don't spam console with the whole object
+                console.error('Submissions API returned unexpected shape, treating as empty list')
+                setSubmissions([])
+            } else {
+                setSubmissions(submissionsData)
             }
         } catch (error) {
             console.error('Failed to fetch submissions', error)
+            setSubmissions([])
         } finally {
             setLoading(false)
         }

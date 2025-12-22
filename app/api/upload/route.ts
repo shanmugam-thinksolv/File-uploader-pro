@@ -35,9 +35,26 @@ export async function POST(request: Request) {
         // Get Drive Client for the form owner
         const drive = await getDriveClient(form.userId);
 
+        // Generate unique filename to avoid conflicts when multiple files with same name are uploaded
+        const originalFileName = file.name || 'unnamed_file';
+        const lastDotIndex = originalFileName.lastIndexOf('.');
+        const hasExtension = lastDotIndex > 0 && lastDotIndex < originalFileName.length - 1;
+        
+        let fileExtension = '';
+        let fileNameWithoutExt = originalFileName;
+        
+        if (hasExtension) {
+            fileExtension = originalFileName.substring(lastDotIndex);
+            fileNameWithoutExt = originalFileName.substring(0, lastDotIndex);
+        }
+        
+        const timestamp = Date.now();
+        const randomId = Math.random().toString(36).substring(2, 9);
+        const uniqueFileName = `${fileNameWithoutExt}_${timestamp}_${randomId}${fileExtension}`;
+
         // Prepare metadata
         const fileMetadata: any = {
-            name: file.name,
+            name: uniqueFileName,
             mimeType: file.type,
         };
 
@@ -104,7 +121,8 @@ export async function POST(request: Request) {
             url: driveFile.webViewLink, // Link to view in Drive
             downloadUrl: driveFile.webContentLink, // Link to download
             fileId: driveFile.id,
-            fileName: driveFile.name,
+            fileName: originalFileName, // Return original filename for display
+            uniqueFileName: driveFile.name, // Return unique filename for reference
             fileType: file.type,
             fileSize: Number(driveFile.size)
         });

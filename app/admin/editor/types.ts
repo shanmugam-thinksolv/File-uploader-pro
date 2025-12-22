@@ -54,6 +54,8 @@ export interface UploadField {
     label: string;
     allowedTypes: string;
     required: boolean;
+    allowMultiple?: boolean;
+    allowFolder?: boolean;
 }
 
 export interface CustomQuestion {

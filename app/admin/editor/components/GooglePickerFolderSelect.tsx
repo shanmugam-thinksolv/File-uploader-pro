@@ -1,9 +1,9 @@
 "use client"
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { Folder, HardDrive, Loader2, Info } from "lucide-react";
+import { Folder, HardDrive, Loader2, Info, X, RefreshCw } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { EditorFormData } from "../types";
 
@@ -23,6 +23,10 @@ export function GooglePickerFolderSelect({ formData, updateField }: GooglePicker
     const [isLoading, setIsLoading] = useState(false);
     const [pickerReady, setPickerReady] = useState(false);
     const [showTooltip, setShowTooltip] = useState(false);
+    const [showChangeTooltip, setShowChangeTooltip] = useState(false);
+    const [showSetDefaultTooltip, setShowSetDefaultTooltip] = useState(false);
+    const changeTooltipTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const setDefaultTooltipTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
     useEffect(() => {
         // Load the Google Picker API
@@ -116,6 +120,9 @@ export function GooglePickerFolderSelect({ formData, updateField }: GooglePicker
             console.log('Access token present:', !!accessToken);
             console.log('Origin:', window.location.protocol + '//' + window.location.host);
 
+            // Scroll to top before opening picker so users can see it
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+
             // Create and show the picker with both My Drive and Shared Drives support
             const picker = new window.google.picker.PickerBuilder()
                 .enableFeature(window.google.picker.Feature.SUPPORT_DRIVES)
@@ -138,7 +145,10 @@ export function GooglePickerFolderSelect({ formData, updateField }: GooglePicker
                 .setOrigin(window.location.origin) // Use origin instead of protocol + host
                 .build();
 
-            picker.setVisible(true);
+            // Small delay to ensure scroll completes before showing picker
+            setTimeout(() => {
+                picker.setVisible(true);
+            }, 100);
         } catch (error: any) {
             console.error('Error opening picker:', error);
             console.error('Error details:', {
@@ -171,21 +181,40 @@ export function GooglePickerFolderSelect({ formData, updateField }: GooglePicker
         if (data.action === window.google.picker.Action.PICKED) {
             const folder = data.docs[0];
             console.log('Folder selected:', folder);
+            console.log('Full folder object:', JSON.stringify(folder, null, 2));
 
             // Detect if this is a shared drive folder
             // Shared drive items have a driveId property
-            const isSharedDrive = !!folder.driveId;
+            // Check multiple properties to ensure accurate detection
+            const hasDriveId = !!folder.driveId;
+            const driveId = folder.driveId || null;
+            
+            // Log all relevant properties for debugging
+            console.log('Drive ID:', driveId);
+            console.log('Has driveId:', hasDriveId);
+            console.log('Folder ID:', folder.id);
+            console.log('Folder URL:', folder.url);
+            console.log('Folder name:', folder.name);
+            
+            // Check if URL contains shared drive indicators
+            const urlIndicatesSharedDrive = folder.url && (
+                folder.url.includes('drive.google.com/drive/folders/') ||
+                folder.url.includes('shared-drive')
+            );
 
-            console.log('Is Shared Drive:', isSharedDrive);
-            console.log('Drive ID:', folder.driveId);
+            // Determine drive type: if driveId exists, it's definitely a shared drive
+            const isSharedDrive = hasDriveId;
+            
+            console.log('Is Shared Drive (final):', isSharedDrive);
+            console.log('URL indicates shared drive:', urlIndicatesSharedDrive);
 
             updateField('driveFolderId', folder.id);
             updateField('driveFolderName', folder.name);
             updateField('driveFolderUrl', folder.url);
             updateField('driveType', isSharedDrive ? 'SHARED_DRIVE' : 'MY_DRIVE');
 
-            if (isSharedDrive && folder.driveId) {
-                updateField('sharedDriveId', folder.driveId);
+            if (isSharedDrive && driveId) {
+                updateField('sharedDriveId', driveId);
             } else {
                 updateField('sharedDriveId', '');
             }
@@ -196,7 +225,7 @@ export function GooglePickerFolderSelect({ formData, updateField }: GooglePicker
         }
     };
 
-    const clearFolder = () => {
+    const setDefaultFolder = () => {
         updateField('driveFolderId', "");
         updateField('driveFolderName', "");
         updateField('driveFolderUrl', "");
@@ -212,15 +241,15 @@ export function GooglePickerFolderSelect({ formData, updateField }: GooglePicker
                             <TooltipTrigger
                                 onMouseEnter={() => setShowTooltip(true)}
                                 onMouseLeave={() => setShowTooltip(false)}
-                                className="text-muted-foreground hover:text-foreground transition-colors"
+                                className="text-muted-foreground hover:text-foreground transition-colors mt-1.5"
                             >
                                 <Info className="w-4 h-4" />
                             </TooltipTrigger>
                             {showTooltip && (
                                 <TooltipContent>
                                     <p className="leading-relaxed">
-                                        By default, a new folder will be automatically created in your Google Drive for this form.
-                                        If you want to save files to a specific existing folder, you can select one using the button below.
+                                        By default, a new folder will be created automatically in your Google Drive for this form.
+                                        If you want to save files to a specific existing folder, you can select one using the button.
                                     </p>
                                 </TooltipContent>
                             )}
@@ -238,7 +267,7 @@ export function GooglePickerFolderSelect({ formData, updateField }: GooglePicker
                         </p>
                     ) : (
                         <p className="text-sm text-muted-foreground mt-1">
-                            Files will be stored in the &quot;File Uploader Pro&quot; folder.
+                            By default, files are saved in a new &quot;File Uploader Pro&quot; folder in your Google Drive.
                         </p>
                     )}
                 </div>
@@ -255,36 +284,97 @@ export function GooglePickerFolderSelect({ formData, updateField }: GooglePicker
                                 <span className="font-medium">Shared Drive</span>
                             </div>
                         )}
-                        {formData.driveType === 'MY_DRIVE' && (
+                        {/* {formData.driveType === 'MY_DRIVE' && (
                             <div className="flex items-center gap-1 text-xs text-gray-600 bg-gray-50 px-2 py-1 rounded-md border border-gray-100">
                                 <HardDrive className="w-3 h-3" />
                                 <span className="font-medium">My Drive</span>
                             </div>
-                        )}
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={openPicker}
-                            disabled={isLoading}
-                            className="gap-2"
-                        >
-                            Change
-                        </Button>
-                        <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={clearFolder}
-                            className="text-muted-foreground hover:text-foreground"
-                        >
-                            Clear
-                        </Button>
+                        )} */}
+                        <Tooltip>
+                            <div
+                                onMouseEnter={() => {
+                                    // Clear any existing timeout
+                                    if (changeTooltipTimeoutRef.current) {
+                                        clearTimeout(changeTooltipTimeoutRef.current)
+                                    }
+                                    // Set timeout to show tooltip after 500ms
+                                    changeTooltipTimeoutRef.current = setTimeout(() => {
+                                        setShowChangeTooltip(true)
+                                    }, 500)
+                                }}
+                                onMouseLeave={() => {
+                                    // Clear timeout if mouse leaves before timeout
+                                    if (changeTooltipTimeoutRef.current) {
+                                        clearTimeout(changeTooltipTimeoutRef.current)
+                                        changeTooltipTimeoutRef.current = null
+                                    }
+                                    setShowChangeTooltip(false)
+                                }}
+                                className="relative inline-block"
+                            >
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={openPicker}
+                                    disabled={isLoading}
+                                    className="gap-2"
+                                    style={{ borderColor: 'var(--primary-600)', color: 'var(--primary-600)' }}
+                                >
+                                    {/* <RefreshCw className="w-4 h-4" /> */}
+                                    Change
+                                </Button>
+                                {showChangeTooltip && (
+                                    <TooltipContent className="w-auto whitespace-nowrap">
+                                        <p>Change selected folder</p>
+                                    </TooltipContent>
+                                )}
+                            </div>
+                        </Tooltip>
+                        <Tooltip>
+                            <div
+                                onMouseEnter={() => {
+                                    // Clear any existing timeout
+                                    if (setDefaultTooltipTimeoutRef.current) {
+                                        clearTimeout(setDefaultTooltipTimeoutRef.current)
+                                    }
+                                    // Set timeout to show tooltip after 500ms
+                                    setDefaultTooltipTimeoutRef.current = setTimeout(() => {
+                                        setShowSetDefaultTooltip(true)
+                                    }, 500)
+                                }}
+                                onMouseLeave={() => {
+                                    // Clear timeout if mouse leaves before timeout
+                                    if (setDefaultTooltipTimeoutRef.current) {
+                                        clearTimeout(setDefaultTooltipTimeoutRef.current)
+                                        setDefaultTooltipTimeoutRef.current = null
+                                    }
+                                    setShowSetDefaultTooltip(false)
+                                }}
+                                className="relative inline-block"
+                            >
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={setDefaultFolder}
+                                    className="gap-2"
+                                    style={{ borderColor: '#64748b', color: '#64748b' }}
+                                >
+                                    Set Default
+                                </Button>
+                                {showSetDefaultTooltip && (
+                                    <TooltipContent className="w-auto whitespace-nowrap">
+                                        <p>Reset to default folder</p>
+                                    </TooltipContent>
+                                )}
+                            </div>
+                        </Tooltip>
                     </div>
                 ) : (
                     <Button
                         variant="outline"
                         size="sm"
                         onClick={openPicker}
-                        className="gap-2"
+                        className="gap-2 mt-2"
                         disabled={isLoading || !pickerReady}
                     >
                         {isLoading ? (
@@ -294,8 +384,8 @@ export function GooglePickerFolderSelect({ formData, updateField }: GooglePicker
                             </>
                         ) : (
                             <>
-                                <HardDrive className="w-4 h-4" />
-                                Choose Custom Folder (Optional)
+                                <HardDrive className="w-4 h-4 text-primary-600" />
+                                Choose a Drive folder (optional)
                             </>
                         )}
                     </Button>

@@ -3,7 +3,7 @@
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
-import { ArrowRight, Shield, Cloud, FileText, Share2, CheckCircle, Users, Lock, Zap } from "lucide-react"
+import { ArrowRight, Shield, Cloud, FileText, Share2, Users, Zap, Infinity, Folder } from "lucide-react"
 import { Footer } from "@/components/footer"
 import { motion, AnimatePresence } from "framer-motion"
 import { useState } from "react"
@@ -51,30 +51,54 @@ export default function Home() {
               transition={{ duration: 0.5 }}
               className="bg-white/90 backdrop-blur-sm border border-gray-200 rounded-lg shadow-sm mx-auto max-w-3xl"
             >
-              <div className="px-4 py-4 flex items-center justify-center">
-                <div className="flex items-center gap-6">
-                  <div className="flex items-center gap-2">
-                    <div className="w-7 h-7 rounded flex items-center justify-center shadow-sm" style={{ background: 'linear-gradient(to bottom right, var(--primary-600), var(--primary-700))' }}>
-                      <span className="text-white font-bold text-sm">F</span>
-                    </div>
-                    <span className="font-bold text-base text-gray-900">File Uploader Pro</span>
+              <div className="px-4 py-4 flex items-center justify-between">
+                {/* Logo + Brand (left) */}
+                <div className="flex items-center gap-2">
+                  <div
+                    className="w-7 h-7 rounded flex items-center justify-center shadow-sm"
+                    style={{ background: 'linear-gradient(to bottom right, var(--primary-600), var(--primary-700))' }}
+                  >
+                    <span className="text-white font-bold text-sm">F</span>
                   </div>
-
-                  <nav className="hidden md:flex items-center gap-6">
-                    <Link href="/contact" className="text-sm font-medium text-gray-600 transition-colors" style={{ '--hover-color': 'var(--primary-600)' } as React.CSSProperties & { '--hover-color': string }} onMouseEnter={(e) => e.currentTarget.style.color = 'var(--primary-600)'} onMouseLeave={(e) => e.currentTarget.style.color = ''}>
-                      Pricing
-                    </Link>
-                    <Link href="/contact" className="text-sm font-medium text-gray-600 transition-colors" style={{ '--hover-color': 'var(--primary-600)' } as React.CSSProperties & { '--hover-color': string }} onMouseEnter={(e) => e.currentTarget.style.color = 'var(--primary-600)'} onMouseLeave={(e) => e.currentTarget.style.color = ''}>
-                      Contact
-                    </Link>
-                  </nav>
+                  <span className="font-bold text-base text-gray-900">File Uploader Pro</span>
                 </div>
+
+                {/* Nav + CTA (right) */}
+                <nav className="hidden md:flex items-center gap-6">
+                  <Link
+                    href="/contact"
+                    className="text-sm font-medium text-gray-600 transition-colors"
+                    style={{ '--hover-color': 'var(--primary-600)' } as React.CSSProperties & { '--hover-color': string }}
+                    onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--primary-600)')}
+                    onMouseLeave={(e) => (e.currentTarget.style.color = '')}
+                  >
+                    Pricing
+                  </Link>
+                  <Link
+                    href="/contact"
+                    className="text-sm font-medium text-gray-600 transition-colors"
+                    style={{ '--hover-color': 'var(--primary-600)' } as React.CSSProperties & { '--hover-color': string }}
+                    onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--primary-600)')}
+                    onMouseLeave={(e) => (e.currentTarget.style.color = '')}
+                  >
+                    Contact
+                  </Link>
+                  <Button
+                    size="sm"
+                    onClick={handleCreateClick}
+                    className="h-9 px-4 rounded-full text-sm font-semibold text-white shadow-sm hover:shadow-md transition-all"
+                    style={{ background: 'linear-gradient(to right, var(--primary-500), var(--primary-700))' }}
+                  >
+                    Get Started
+                    <ArrowRight className="w-4 h-4 ml-2" />
+                  </Button>
+                </nav>
               </div>
             </motion.header>
           </div>
 
           {/* Hero Section - Simple & Clear */}
-          <main className="px-4 sm:px-6 lg:px-8 pt-16 pb-20 max-w-7xl mx-auto w-full relative z-10">
+          <main className="px-4 sm:px-6 lg:px-8 pt-16 pb-10 max-w-7xl mx-auto w-full relative z-10">
             <div className="text-center max-w-4xl mx-auto">
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
@@ -86,9 +110,26 @@ export default function Home() {
                   Collect Files from Anyone,<br />
                   <span style={{ color: 'var(--primary-600)' }}>Anytime</span>
                 </h1>
-                <p className="text-xl sm:text-2xl text-gray-600 mb-10 leading-relaxed max-w-2xl mx-auto">
-                  Create a simple form. Share the link. Get files in your Google Drive.
+                <p className="text-xl sm:text-2xl text-gray-600 mb-6 leading-relaxed max-w-2xl mx-auto">
+                  Automate file collection with a simple link and get files to your Google Drive directly.
                 </p>
+
+                {/* Tags */}
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5, delay: 0.3 }}
+                  className="flex flex-wrap items-center justify-center gap-3 mb-8"
+                >
+                  <div className="inline-flex items-center gap-2 px-4 py-2 bg-primary-50 border border-primary-100 rounded-full text-sm font-medium text-primary-700">
+                    <Infinity className="w-4 h-4" />
+                    No Size Limits
+                  </div>
+                  <div className="inline-flex items-center gap-2 px-4 py-2 bg-primary-50 border border-primary-100 rounded-full text-sm font-medium text-primary-700">
+                    <Folder className="w-4 h-4" />
+                    Support Folder Uploads
+                  </div>
+                </motion.div>
               </motion.div>
 
               <motion.div
@@ -100,13 +141,13 @@ export default function Home() {
                 <Button
                   size="lg"
                   onClick={handleCreateClick}
-                  className="h-14 text-lg text-white rounded-lg shadow-lg hover:shadow-xl transition-all duration-300"
+                  className="h-14 text-lg text-white mt-5 mb-4 rounded-lg shadow-lg hover:shadow-xl transition-all duration-300"
                   style={{ background: 'linear-gradient(to right, var(--primary-500), var(--primary-700))' }}
                   onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--primary-700)'}
                   onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'var(--primary-600)'}
                 >
                   Get Started
-                 <ArrowRight className="w-5 h-5 ml-2" />
+                  <ArrowRight className="w-5 h-5 ml-2" />
                 </Button>
               </motion.div>
             </div>
@@ -116,7 +157,7 @@ export default function Home() {
               initial={{ opacity: 0, y: 40 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8, delay: 0.4 }}
-              className="mt-28 mb-20"
+              className="mt-10 mb-20"
             >
               {/* <h2 className="text-3xl sm:text-4xl font-bold text-center text-gray-900 mb-4">
                 How It Works
@@ -138,7 +179,7 @@ export default function Home() {
                     <div className="w-20 h-20 rounded-2xl flex items-center justify-center mx-auto mb-4" style={{ backgroundColor: 'var(--primary-100)' }}>
                       <FileText className="w-10 h-10" style={{ color: 'var(--primary-600)' }} />
                     </div>
-                    
+
                   </div>
                   <h3 className="text-2xl font-bold text-gray-900 mb-3">Create Your Form</h3>
                   <p className="text-lg text-gray-600 leading-relaxed">
@@ -158,7 +199,7 @@ export default function Home() {
                     <div className="w-20 h-20 rounded-2xl flex items-center justify-center mx-auto mb-4" style={{ backgroundColor: 'var(--primary-100)' }}>
                       <Share2 className="w-10 h-10" style={{ color: 'var(--primary-600)' }} />
                     </div>
-                    
+
                   </div>
                   <h3 className="text-2xl font-bold text-gray-900 mb-3">Share the Link</h3>
                   <p className="text-lg text-gray-600 leading-relaxed">
@@ -178,7 +219,7 @@ export default function Home() {
                     <div className="w-20 h-20 rounded-2xl flex items-center justify-center mx-auto mb-4" style={{ backgroundColor: 'var(--primary-100)' }}>
                       <Cloud className="w-10 h-10" style={{ color: 'var(--primary-600)' }} />
                     </div>
-                    
+
                   </div>
                   <h3 className="text-2xl font-bold text-gray-900 mb-3">Get Files in Drive</h3>
                   <p className="text-lg text-gray-600 leading-relaxed">
@@ -205,27 +246,27 @@ export default function Home() {
 
               <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6 max-w-6xl mx-auto">
                 {[
-                  { 
-                    icon: Users, 
-                    title: "No Account Needed", 
+                  {
+                    icon: Users,
+                    title: "No Account Needed",
                     desc: "People can upload files without creating any account. Just click and upload.",
                     color: "bg-blue-50 text-blue-600"
                   },
-                  { 
-                    icon: Shield, 
-                    title: "Safe & Secure", 
+                  {
+                    icon: Shield,
+                    title: "Safe & Secure",
                     desc: "Your files are protected with password options and secure storage.",
                     color: "bg-green-50 text-green-600"
                   },
-                  { 
-                    icon: Cloud, 
-                    title: "Google Drive", 
+                  {
+                    icon: Cloud,
+                    title: "Google Drive",
                     desc: "Files automatically save to your Google Drive. No extra storage needed.",
                     color: "bg-purple-50 text-purple-600"
                   },
-                  { 
-                    icon: Zap, 
-                    title: "Fast & Easy", 
+                  {
+                    icon: Zap,
+                    title: "Fast & Easy",
                     desc: "Set up in 2 minutes. Works on phone, tablet, and computer.",
                     color: "bg-orange-50 text-orange-600"
                   }

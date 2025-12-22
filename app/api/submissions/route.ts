@@ -22,12 +22,16 @@ export async function GET(req: NextRequest) {
             }
         })
 
+        // Ensure we always return an array to the frontend
+        if (!Array.isArray(submissions)) {
+            console.error('Prisma returned non-array submissions:', submissions)
+            return NextResponse.json([])
+        }
+
         return NextResponse.json(submissions)
     } catch (error) {
         console.error('Failed to fetch submissions:', error)
-        return NextResponse.json(
-            { error: 'Failed to fetch submissions' },
-            { status: 500 }
-        )
+        // Return empty array instead of error object to keep frontend logic simple
+        return NextResponse.json([])
     }
 }

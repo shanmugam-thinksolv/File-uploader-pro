@@ -80,12 +80,8 @@ export default async function UploadPage({ params }: { params: Promise<{ formId:
     }
 
     // Ensure uploadFields is always an array with properly formatted data
-    if (!uploadFields || !Array.isArray(uploadFields) || uploadFields.length === 0) {
-        uploadFields = [{
-            id: "default",
-            label: "Upload File",
-            allowedTypes: []
-        }]
+    if (!uploadFields || !Array.isArray(uploadFields)) {
+        uploadFields = []
     } else {
         // Fix each upload field to ensure allowedTypes is an array
         uploadFields = uploadFields.map((field: any) => ({

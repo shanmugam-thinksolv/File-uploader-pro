@@ -31,7 +31,21 @@ export function AccessTab({ formData, updateField }: AccessTabProps) {
                     </div>
                         <Switch
                             checked={!!formData.expiryDate}
-                            onCheckedChange={(c) => updateField('expiryDate', c ? new Date().toISOString().slice(0, 16) : null)}
+                            onCheckedChange={(c) => {
+                                if (c) {
+                                    // Set to current date and time
+                                    const now = new Date()
+                                    const year = now.getFullYear()
+                                    const month = String(now.getMonth() + 1).padStart(2, '0')
+                                    const day = String(now.getDate()).padStart(2, '0')
+                                    const hours = String(now.getHours()).padStart(2, '0')
+                                    const minutes = String(now.getMinutes()).padStart(2, '0')
+                                    const dateTimeString = `${year}-${month}-${day}T${hours}:${minutes}`
+                                    updateField('expiryDate', dateTimeString)
+                                } else {
+                                    updateField('expiryDate', null)
+                                }
+                            }}
                             className="data-[state=checked]:bg-primary-600"
                         />
                 </div>
@@ -45,7 +59,31 @@ export function AccessTab({ formData, updateField }: AccessTabProps) {
                             <Input
                                 type="datetime-local"
                                 value={formData.expiryDate.slice(0, 16)}
-                                onChange={(e) => updateField('expiryDate', e.target.value)}
+                                min={(() => {
+                                    // Set minimum to current date and time
+                                    const now = new Date()
+                                    const year = now.getFullYear()
+                                    const month = String(now.getMonth() + 1).padStart(2, '0')
+                                    const day = String(now.getDate()).padStart(2, '0')
+                                    const hours = String(now.getHours()).padStart(2, '0')
+                                    const minutes = String(now.getMinutes()).padStart(2, '0')
+                                    return `${year}-${month}-${day}T${hours}:${minutes}`
+                                })()}
+                                onChange={(e) => {
+                                    const selectedValue = e.target.value
+                                    if (selectedValue) {
+                                        const [datePart, timePart] = selectedValue.split('T')
+                                        
+                                        // Always use current time when date is selected
+                                        const now = new Date()
+                                        const currentTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
+                                        const finalValue = `${datePart}T${currentTime}`
+                                        
+                                        updateField('expiryDate', finalValue)
+                                    } else {
+                                        updateField('expiryDate', null)
+                                    }
+                                }}
                                 className="w-full sm:w-auto px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all duration-200"
                             />
                         </div>
