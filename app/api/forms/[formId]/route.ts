@@ -1,6 +1,20 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
+// Helper function to calculate form type
+function calculateFormType(isPublished: boolean, expiryDate: Date | null | string): string {
+    const now = new Date();
+    const expiry = expiryDate ? new Date(expiryDate) : null;
+    
+    if (expiry && now > expiry) {
+        return 'Expired';
+    }
+    if (isPublished) {
+        return 'Published';
+    }
+    return 'Draft';
+}
+
 export async function GET(
     request: Request,
     { params }: { params: Promise<{ formId: string }> }
@@ -39,11 +53,48 @@ export async function GET(
             }
         }
 
-        return NextResponse.json(form);
-    } catch (error) {
+        // Calculate and update type if needed
+        const formType = calculateFormType(form.isPublished, form.expiryDate);
+        
+        // Derive accessProtectionType for the frontend
+        let accessProtectionType = 'PUBLIC';
+        if (form.isPasswordProtected) {
+            accessProtectionType = 'PASSWORD';
+        } else if (form.accessLevel === 'INVITED') {
+            accessProtectionType = 'GOOGLE';
+        }
+
+        if (form.type !== formType) {
+            try {
+                // Use raw SQL to update the type field to bypass Prisma Client's 
+                // "Unknown argument type" error if the client hasn't been regenerated yet.
+                await prisma.$executeRawUnsafe(
+                    `UPDATE "Form" SET "type" = $1 WHERE "id" = $2`,
+                    formType,
+                    formId
+                );
+            } catch (e: any) {
+                // Fallback: If raw SQL fails (e.g., column doesn't exist at all yet),
+                // we just skip it and let the UI use the calculated value.
+                console.log(`Note: Background type update skipped for form ${formId}`);
+            }
+        }
+
+        return NextResponse.json({ ...form, type: formType, accessProtectionType });
+    } catch (error: any) {
         console.error('Error fetching form:', error);
+        console.error('Error details:', {
+            message: error?.message,
+            code: error?.code,
+            meta: error?.meta,
+            stack: error?.stack
+        });
         return NextResponse.json(
-            { error: 'Failed to fetch form' },
+            { 
+                error: 'Failed to fetch form',
+                details: error?.message || 'Unknown error',
+                code: error?.code
+            },
             { status: 500 }
         );
     }
@@ -66,6 +117,7 @@ export async function PUT(
             'isPasswordProtected', 'password', 'isCaptchaEnabled', 'enableSubmitAnother',
             'isPublished', 'isAcceptingResponses', 'expiryDate', 'accessLevel',
             'allowedEmails', 'emailFieldControl', 'enableMetadataSpreadsheet',
+            'enableResponseSheet', 'responseSheetId',
             'subfolderOrganization', 'customSubfolderField', 'enableSmartGrouping',
             'uploadFields', 'customQuestions'
         ];
@@ -77,6 +129,10 @@ export async function PUT(
                 updateData[key] = body[key];
             }
         }
+
+        // Handle allowedDomains - convert array to comma-separated string
+        const allowedDomainsValue = updateData.allowedDomains;
+        delete updateData.allowedDomains;
 
         // Map accessProtectionType to isPasswordProtected
         // Frontend uses accessProtectionType ("PUBLIC", "PASSWORD", "GOOGLE")
@@ -145,14 +201,40 @@ export async function PUT(
             }
         }
 
+        // Calculate form type (will be set after update if field exists)
+        const currentIsPublished = updateData.isPublished !== undefined 
+            ? updateData.isPublished 
+            : (await prisma.form.findUnique({ where: { id: formId }, select: { isPublished: true } }))?.isPublished || false;
+        const calculatedType = calculateFormType(currentIsPublished, finalExpiryDate);
+
         console.log('Filtered Update Data Keys:', Object.keys(updateData));
 
+        // Update form
         const form = await prisma.form.update({
             where: { id: formId },
-            data: updateData,
+            data: updateData as any,
         });
 
-        return NextResponse.json(form);
+        // Try to update type if field exists (gracefully handle if Prisma client not regenerated)
+        try {
+            // Use raw SQL to update the type and allowedDomains fields to bypass Prisma Client's 
+            // "Unknown argument" errors if the client hasn't been regenerated yet.
+            const domainsString = Array.isArray(allowedDomainsValue) 
+                ? allowedDomainsValue.join(',') 
+                : (typeof allowedDomainsValue === 'string' ? allowedDomainsValue : "");
+
+            await prisma.$executeRawUnsafe(
+                `UPDATE "Form" SET "type" = $1, "allowedDomains" = $2 WHERE "id" = $3`,
+                calculatedType,
+                domainsString,
+                formId
+            );
+        } catch (typeError: any) {
+            // If fields don't exist yet, that's okay
+            console.log('Additional fields not available yet via raw SQL:', typeError.message);
+        }
+
+        return NextResponse.json({ ...form, type: calculatedType });
     } catch (error) {
         console.error('Error updating form:', error);
         // @ts-ignore

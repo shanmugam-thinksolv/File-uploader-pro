@@ -8,7 +8,7 @@ import { useRouter, usePathname } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Switch } from "@/components/ui/switch"
 import { Tooltip, TooltipContent } from "@/components/ui/tooltip"
-import { Plus, FileText, Loader2, ExternalLink, AlertTriangle, X, CheckCircle, Clock, Pencil, Send, Trash2 } from "lucide-react"
+import { Plus, FileText, Loader2, ExternalLink, AlertTriangle, X, CheckCircle, Clock, Pencil, Send, Trash2, FileSpreadsheet } from "lucide-react"
 
 // Tooltip wrapper component for buttons
 function ButtonWithTooltip({ 
@@ -190,8 +190,8 @@ export default function AdminDashboard() {
 
     // Validation rules - each rule returns a message if validation fails, null if passed
     const validateFormTitle = (formData: any): string | null => {
-        // Check if title is empty or just whitespace (treat "Untitled Form" as empty since it's a placeholder)
-        const title = formData.title === 'Untitled Form' ? '' : (formData.title || '')
+        // Check if title is empty or just whitespace (allow "Untitled Form" as valid)
+        const title = formData.title || ''
         if (!title || title.trim() === '') {
             return 'Please add a form title.'
         }
@@ -340,19 +340,35 @@ export default function AdminDashboard() {
     const confirmDelete = async () => {
         if (!deleteModal.formId) return
 
+        // Optimistic update: immediately remove from UI and close modal
+        const formToDelete = forms.find(f => f.id === deleteModal.formId)
+        setForms(forms.filter(f => f.id !== deleteModal.formId))
+        closeDeleteModal()
+
+        // Perform actual deletion in background
         try {
             const res = await fetch(`/api/forms/${deleteModal.formId}`, {
                 method: 'DELETE'
             })
 
-            if (res.ok) {
-                setForms(forms.filter(f => f.id !== deleteModal.formId))
-                closeDeleteModal()
-            } else {
-                showMessage('Error', 'Failed to delete form', 'error')
+            if (!res.ok) {
+                // Revert optimistic update on failure
+                if (formToDelete) {
+                    setForms(prev => [...prev, formToDelete].sort((a, b) => 
+                        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+                    ))
+                }
+                const errorData = await res.json().catch(() => ({}))
+                showMessage('Error', errorData.error || 'Failed to delete form', 'error')
             }
         } catch (error) {
             console.error('Failed to delete form', error)
+            // Revert optimistic update on failure
+            if (formToDelete) {
+                setForms(prev => [...prev, formToDelete].sort((a, b) => 
+                    new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+                ))
+            }
             showMessage('Error', 'Failed to delete form', 'error')
         }
     }
@@ -366,15 +382,15 @@ export default function AdminDashboard() {
     }
 
     return (
-        <div className="space-y-6">
-            <div className="flex justify-between items-center">
+        <div className="space-y-4 sm:space-y-6">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div>
-                    <h2 className="text-3xl font-bold tracking-tight">My Forms</h2>
-                    <p className="text-muted-foreground mt-2">Manage your file upload forms.</p>
+                    <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">My Forms</h2>
+                    <p className="text-sm sm:text-base text-muted-foreground mt-1 sm:mt-2">Manage your file upload forms.</p>
                 </div>
-                <div className="flex items-center gap-2">
-                    <Link href="/admin/editor?id=new&tab=configuration">
-                        <Button>
+                <div className="w-full sm:w-auto">
+                    <Link href="/admin/editor?id=new&tab=configuration" className="w-full block">
+                        <Button className="w-full sm:w-auto h-11 sm:h-10">
                             <Plus className="w-4 h-4 mr-2" />
                             Create New Form
                         </Button>
@@ -387,7 +403,7 @@ export default function AdminDashboard() {
                     <Loader2 className="w-8 h-8 animate-spin text-primary" />
                 </div>
             ) : forms.length === 0 ? (
-                <div className="text-center py-12 border border-dashed rounded-lg">
+                <div className="text-center py-12 border border-dashed rounded-lg px-4">
                     <p className="text-muted-foreground mb-4">No forms created yet</p>
                     <Link href="/admin/editor?id=new&tab=configuration">
                         <Button variant="outline">
@@ -397,226 +413,256 @@ export default function AdminDashboard() {
                     </Link>
                 </div>
             ) : (
-                <div className="space-y-8">
+                <div className="space-y-6 sm:space-y-8">
                     {/* Published Forms */}
                     {forms.filter((form) => form.isPublished === true && !isFormExpired(form)).length > 0 && (
                         <div className="space-y-4">
-                            <h3 className="text-xl font-semibold text-gray-900">Published</h3>
-                            {forms.filter((form) => form.isPublished === true && !isFormExpired(form)).map((form) => {
-                                const expired = isFormExpired(form)
-                                // If form is expired, force isAcceptingResponses to false
-                                const effectiveStatus = expired ? false : form.isAcceptingResponses
-                                
-                                return (
-                                    <div
-                                        key={form.id}
-                                        className="bg-white border border-gray-200 rounded-lg p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm"
-                                    >
-                                        <div className="flex items-center gap-4 flex-wrap">
-                                            <h3 className="text-base font-semibold text-gray-900">{form.title}</h3>
+                            <h3 className="text-lg sm:text-xl font-semibold text-gray-900 flex items-center gap-2">
+                                <CheckCircle className="w-5 h-5 text-green-600" />
+                                Published
+                            </h3>
+                            <div className="grid grid-cols-1 gap-4">
+                                {forms.filter((form) => form.isPublished === true && !isFormExpired(form)).map((form) => {
+                                    const expired = isFormExpired(form)
+                                    const effectiveStatus = expired ? false : form.isAcceptingResponses
+                                    
+                                    return (
+                                        <div
+                                            key={form.id}
+                                            className="bg-white border border-gray-200 rounded-xl p-4 sm:p-5 flex flex-col lg:flex-row lg:items-center justify-between gap-4 shadow-sm hover:shadow-md transition-shadow"
+                                        >
+                                            <div className="flex-1 min-w-0 flex flex-col lg:flex-row lg:items-center gap-2 lg:gap-4">
+                                                <div className="flex items-center gap-3 min-w-0">
+                                                    <h3 className="text-base sm:text-lg font-bold text-gray-900 truncate max-w-[200px] sm:max-w-md">{form.title}</h3>
+                                                    {form.type && (
+                                                        <span className={`text-[10px] sm:text-[11px] font-medium px-2 py-0.5 rounded-full border ${
+                                                            form.type === 'Published' 
+                                                                ? 'bg-green-50 text-green-600 border-green-100' 
+                                                                : form.type === 'Expired'
+                                                                ? 'bg-red-50 text-red-600 border-red-100'
+                                                                : form.type === 'Draft'
+                                                                ? 'bg-blue-50 text-blue-600 border-blue-100'
+                                                                : 'bg-gray-50 text-gray-600 border-gray-100'
+                                                        }`}>
+                                                            {form.type}
+                                                        </span>
+                                                    )}
+                                                </div>
 
-                                            <div className="flex items-center gap-2 bg-gray-50 px-3 py-1 rounded-full border border-gray-100">
-                                                <Switch
-                                                    checked={effectiveStatus}
-                                                    onCheckedChange={() => handleToggleStatus(form.id, effectiveStatus, form)}
-                                                    className={`scale-75 ${expired ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                                />
-                                                <span className={`text-xs font-medium ${effectiveStatus ? 'text-green-600' : 'text-gray-500'}`}>
-                                                    {expired ? 'Form Expired' : (effectiveStatus ? 'Accepting Responses' : 'Not accepting responses')}
-                                                </span>
+                                                <div className="flex items-center gap-3 flex-wrap text-xs sm:text-sm">
+                                                    <div className="flex items-center gap-2 bg-gray-50 px-2.5 py-1 rounded-lg border border-gray-100">
+                                                        <Switch
+                                                            checked={effectiveStatus}
+                                                            onCheckedChange={() => handleToggleStatus(form.id, effectiveStatus, form)}
+                                                            className={`scale-75 ${expired ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                                        />
+                                                        <span className={`font-semibold ${effectiveStatus ? 'text-green-600' : 'text-gray-500'}`}>
+                                                            {expired ? 'Expired' : (effectiveStatus ? 'Accepting' : 'Paused')}
+                                                        </span>
+                                                    </div>
+                                                    <span className="text-gray-300 hidden lg:inline">|</span>
+                                                    <p className="text-gray-500 whitespace-nowrap">
+                                                        {(form._count?.submissions || 0) > 0 ? `${form._count?.submissions} Submissions` : "No submissions yet."}
+                                                    </p>
+                                                    <span className="text-gray-300 hidden lg:inline">|</span>
+                                                    <p className="text-gray-400 whitespace-nowrap">
+                                                        {formatDate(form.createdAt)}
+                                                    </p>
+                                                </div>
                                             </div>
 
-                                            <span className="text-sm text-gray-400 hidden sm:inline">•</span>
-                                            <p className="text-sm text-gray-500">
-                                                Created on {formatDate(form.createdAt)} • {form._count?.submissions || 0} Submissions
-                                            </p>
+                                            <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+                                                <div className="grid grid-cols-2 sm:flex sm:items-center gap-2 w-full sm:w-auto">
+                                                    <Link href={`/upload/${form.id}`} target="_blank" className="flex-1 sm:flex-none">
+                                                        <Button variant="outline" size="sm" className="w-full h-9 bg-white text-gray-600 border-gray-200">
+                                                            <ExternalLink className="w-3.5 h-3.5 mr-1.5" />
+                                                            Open Form
+                                                        </Button>
+                                                    </Link>
+                                                    <Link href={`/admin/uploads?formId=${form.id}`} className="flex-1 sm:flex-none">
+                                                        <Button variant="outline" size="sm" className="w-full h-9 bg-white text-gray-600 border-gray-200">
+                                                            <FileText className="w-3.5 h-3.5 mr-1.5" />
+                                                           View Uploads
+                                                        </Button>
+                                                    </Link>
+                                                </div>
+                                                <div className="flex items-center gap-2 w-full sm:w-auto">
+                                                    {(form as any).enableResponseSheet && (form as any).responseSheetId && (
+                                                        <a 
+                                                            href={`https://docs.google.com/spreadsheets/d/${(form as any).responseSheetId}/edit`}
+                                                            target="_blank"
+                                                            rel="noopener noreferrer"
+                                                            className="flex-1 sm:flex-none"
+                                                        >
+                                                            <Button variant="outline" size="sm" className="w-full h-9 bg-white text-gray-600 border-gray-200">
+                                                                <FileSpreadsheet className="w-3.5 h-3.5 mr-1.5" />
+                                                                Sheet
+                                                            </Button>
+                                                        </a>
+                                                    )}
+                                                    <Link href={`/admin/editor?id=${form.id}&tab=configuration`} className="flex-1 sm:flex-none">
+                                                        <Button variant="outline" size="sm" className="w-full h-9 bg-white text-gray-600 border-gray-200">
+                                                            <Pencil className="w-3.5 h-3.5 mr-1.5" />
+                                                            Edit
+                                                        </Button>
+                                                    </Link>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        className="h-9 w-9 text-red-500 hover:text-red-600 hover:bg-red-50"
+                                                        onClick={(e) => {
+                                                            e.preventDefault()
+                                                            e.stopPropagation()
+                                                            openDeleteModal(form.id, form.isAcceptingResponses)
+                                                        }}
+                                                    >
+                                                        <Trash2 className="w-4 h-4" />
+                                                    </Button>
+                                                </div>
+                                            </div>
                                         </div>
-
-                                        <div className="flex items-center gap-2">
-                                            <ButtonWithTooltip tooltipText="Open form in new tab">
-                                                <Link href={`/upload/${form.id}`} target="_blank">
-                                                    <Button variant="outline" size="sm" className="h-9 bg-white hover:bg-gray-50 text-gray-700 border-gray-200">
-                                                        <ExternalLink className="w-4 h-4 mr-2 text-gray-500" />
-                                                        Open Form
-                                                    </Button>
-                                                </Link>
-                                            </ButtonWithTooltip>
-                                            <ButtonWithTooltip tooltipText="View all form submissions">
-                                                <Link href={`/admin/uploads?formId=${form.id}`}>
-                                                    <Button variant="outline" size="sm" className="h-9 bg-white hover:bg-gray-50 text-gray-700 border-gray-200">
-                                                        <FileText className="w-4 h-4 mr-2 text-gray-500" />
-                                                        View Uploads
-                                                    </Button>
-                                                </Link>
-                                            </ButtonWithTooltip>
-                                            <ButtonWithTooltip tooltipText="Edit form">
-                                                <Link href={`/admin/editor?id=${form.id}&tab=configuration`}>
-                                                    <Button variant="outline" size="sm" className="h-9 bg-white hover:bg-gray-50 text-gray-700 border-gray-200 px-4">
-                                                        <Pencil className="w-4 h-4 mr-2 text-gray-500" />
-                                                        Edit
-                                                    </Button>
-                                                </Link>
-                                            </ButtonWithTooltip>
-                                            <ButtonWithTooltip tooltipText="Delete form">
-                                                <button
-                                                    className="h-9 w-9 flex items-center justify-center text-red-600 hover:text-red-700 hover:bg-red-50 rounded-md transition-colors"
-                                                    onClick={(e) => {
-                                                        e.preventDefault()
-                                                        e.stopPropagation()
-                                                        openDeleteModal(form.id, form.isAcceptingResponses)
-                                                    }}
-                                                    type="button"
-                                                >
-                                                    <Trash2 className="w-4 h-4" />
-                                                </button>
-                                            </ButtonWithTooltip>
-                                        </div>
-                                    </div>
-                                )
-                            })}
+                                    )
+                                })}
+                            </div>
                         </div>
                     )}
 
                     {/* Drafts */}
                     {forms.filter((form) => (!form.isPublished || form.isPublished === false) && !isFormExpired(form)).length > 0 && (
                         <div className="space-y-4">
-                            <h3 className="text-xl font-semibold text-gray-900">Drafts</h3>
-                            {forms.filter((form) => (!form.isPublished || form.isPublished === false) && !isFormExpired(form)).map((form) => {
-                                return (
-                                    <div
-                                        key={form.id}
-                                        className="bg-white border border-gray-200 rounded-lg p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm"
-                                    >
-                                        <div className="flex items-center gap-4 flex-wrap">
-                                            <h3 className="text-base font-semibold text-gray-900">{form.title}</h3>
-
-                                            {/* Draft Badge */}
-                                            <div className="flex items-center gap-2 bg-blue-50 px-3 py-1 rounded-full border border-blue-100">
-                                                <span className="text-xs font-medium text-blue-600">
-                                                    Draft
-                                                </span>
+                            <h3 className="text-lg sm:text-xl font-semibold text-gray-900 flex items-center gap-2">
+                                <Clock className="w-5 h-5 text-blue-600" />
+                                Drafts
+                            </h3>
+                            <div className="grid grid-cols-1 gap-4">
+                                {forms.filter((form) => (!form.isPublished || form.isPublished === false) && !isFormExpired(form)).map((form) => {
+                                    return (
+                                        <div
+                                            key={form.id}
+                                            className="bg-white border border-gray-200 rounded-xl p-4 sm:p-5 flex flex-col lg:flex-row lg:items-center justify-between gap-4 shadow-sm hover:shadow-md transition-shadow"
+                                        >
+                                            <div className="flex-1 min-w-0 flex flex-col lg:flex-row lg:items-center gap-2 lg:gap-4">
+                                                <div className="flex items-center gap-3 min-w-0">
+                                                    <h3 className="text-base sm:text-lg font-bold text-gray-900 truncate max-w-[200px] sm:max-w-md">{form.title}</h3>
+                                                    <span className="text-[10px] sm:text-[11px] font-medium px-2 py-0.5 rounded-full bg-blue-50 text-blue-600 border border-blue-100">
+                                                        Draft
+                                                    </span>
+                                                </div>
+                                                <p className="text-xs sm:text-sm text-gray-400 whitespace-nowrap">
+                                                    Last updated on {formatDate(form.updatedAt || form.createdAt)}
+                                                </p>
                                             </div>
 
-                                            <span className="text-sm text-gray-400 hidden sm:inline">•</span>
-                                            <p className="text-sm text-gray-500">
-                                                Created on {formatDate(form.createdAt)} • No submissions yet
-                                            </p>
-                                        </div>
-
-                                        <div className="flex items-center gap-2">
-                                            {/* Publish Button */}
-                                            <ButtonWithTooltip tooltipText="Publish form to make it live">
-                                                <Button
-                                                    onClick={() => handlePublish(form.id)}
-                                                    size="sm"
-                                                    variant="outline"
-                                                    disabled={publishingFormId === form.id}
-                                                    className="h-9 bg-white hover:bg-gray-50 text-gray-700 border-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                                                >
-                                                    {publishingFormId === form.id ? (
-                                                        <>
-                                                            <Loader2 className="w-4 h-4 mr-2 text-gray-500 animate-spin" />
-                                                            <span className="inline-flex items-baseline">
-                                                                Loading
-                                                                <span className="relative -top-1">...</span>
-                                                            </span>
-                                                        </>
-                                                    ) : (
-                                                        <>
-                                                            <Send className="w-4 h-4 mr-2 text-gray-500" />
-                                                            Publish
-                                                        </>
-                                                    )}
-                                                </Button>
-                                            </ButtonWithTooltip>
-                                            <ButtonWithTooltip tooltipText="Edit form">
-                                                <Link href={`/admin/editor?id=${form.id}&tab=configuration`}>
-                                                    <Button variant="outline" size="sm" className="h-9 bg-white hover:bg-gray-50 text-gray-700 border-gray-200 px-4">
-                                                        <Pencil className="w-4 h-4 mr-2 text-gray-500" />
-                                                        Edit
+                                            <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+                                                <div className="flex items-center gap-2 w-full sm:w-auto">
+                                                    <Button
+                                                        onClick={() => handlePublish(form.id)}
+                                                        size="sm"
+                                                        disabled={publishingFormId === form.id}
+                                                        variant="outline" className="w-full h-9 bg-white text-gray-600 border-gray-200"
+                                                    >
+                                                        {publishingFormId === form.id ? (
+                                                            <Loader2 className="w-4 h-4 animate-spin" />
+                                                        ) : (
+                                                            <>
+                                                                <Send className="w-3.5 h-3.5 mr-1.5" />
+                                                                Publish
+                                                            </>
+                                                        )}
                                                     </Button>
-                                                </Link>
-                                            </ButtonWithTooltip>
-                                            <ButtonWithTooltip tooltipText="Delete form">
-                                                <button
-                                                    className="h-9 w-9 flex items-center justify-center text-red-600 hover:text-red-700 hover:bg-red-50 rounded-md transition-colors"
-                                                    onClick={(e) => {
-                                                        e.preventDefault()
-                                                        e.stopPropagation()
-                                                        openDeleteModal(form.id, form.isAcceptingResponses)
-                                                    }}
-                                                    type="button"
-                                                >
-                                                    <Trash2 className="w-4 h-4" />
-                                                </button>
-                                            </ButtonWithTooltip>
+                                                    <Link href={`/admin/editor?id=${form.id}&tab=configuration`} className="flex-1 sm:flex-none">
+                                                        <Button variant="outline" size="sm" className="w-full h-9 bg-white text-gray-600 border-gray-200">
+                                                            <Pencil className="w-3.5 h-3.5 mr-1.5" />
+                                                            Edit
+                                                        </Button>
+                                                    </Link>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        className="h-9 w-9 text-red-500 hover:text-red-600 hover:bg-red-50"
+                                                        onClick={(e) => {
+                                                            e.preventDefault()
+                                                            e.stopPropagation()
+                                                            openDeleteModal(form.id, form.isAcceptingResponses)
+                                                        }}
+                                                    >
+                                                        <Trash2 className="w-4 h-4" />
+                                                    </Button>
+                                                </div>
+                                            </div>
                                         </div>
-                                    </div>
-                                )
-                            })}
+                                    )
+                                })}
+                            </div>
                         </div>
                     )}
 
                     {/* Expired Forms */}
                     {forms.filter((form) => form.isPublished === true && isFormExpired(form)).length > 0 && (
                         <div className="space-y-4">
-                            <h3 className="text-xl font-semibold text-gray-900">Expired</h3>
-                            {forms.filter((form) => form.isPublished === true && isFormExpired(form)).map((form) => {
-                                return (
-                                    <div
-                                        key={form.id}
-                                        className="bg-white border border-gray-200 rounded-lg p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm opacity-75"
-                                    >
-                                        <div className="flex items-center gap-4 flex-wrap">
-                                            <h3 className="text-base font-semibold text-gray-900">{form.title}</h3>
-
-                                            {/* Expired Badge */}
-                                            <div className="flex items-center gap-2 bg-orange-50 px-3 py-1 rounded-full border border-orange-100">
-                                                <span className="text-xs font-medium text-orange-600">
-                                                    Expired
-                                                </span>
+                            <h3 className="text-lg sm:text-xl font-semibold text-gray-900 flex items-center gap-2">
+                                <AlertTriangle className="w-5 h-5 text-red-600" />
+                                Expired
+                            </h3>
+                            <div className="grid grid-cols-1 gap-4">
+                                {forms.filter((form) => form.isPublished === true && isFormExpired(form)).map((form) => {
+                                    return (
+                                        <div
+                                            key={form.id}
+                                            className="bg-white border border-gray-200 rounded-xl p-4 sm:p-5 flex flex-col lg:flex-row lg:items-center justify-between gap-4 shadow-sm opacity-80"
+                                        >
+                                            <div className="flex-1 min-w-0 flex flex-col lg:flex-row lg:items-center gap-2 lg:gap-4">
+                                                <div className="flex items-center gap-3 min-w-0">
+                                                    <h3 className="text-base
+                                                     sm:text-lg font-bold text-gray-900 truncate max-w-[200px] sm:max-w-md">{form.title}</h3>
+                                                    <span className="text-[10px] sm:text-[11px] font-medium px-2 py-0.5 rounded-full bg-red-50 text-red-600 border border-red-100">
+                                                        Expired
+                                                    </span>
+                                                </div>
+                                                
+                                                <div className="flex items-center gap-3 flex-wrap text-xs sm:text-sm">
+                                                    <p className="text-gray-500 whitespace-nowrap">
+                                                        {(form._count?.submissions || 0) > 0 ? `${form._count?.submissions} Submissions` : "No submissions yet."}
+                                                    </p>
+                                                    <span className="text-gray-300 hidden lg:inline">|</span>
+                                                    <p className="text-xs sm:text-sm text-gray-400 whitespace-nowrap">
+                                                        Closed on {form.expiryDate ? formatDate(form.expiryDate) : 'Unknown date'}
+                                                    </p>
+                                                </div>
                                             </div>
 
-                                            <span className="text-sm text-gray-400 hidden sm:inline">•</span>
-                                            <p className="text-sm text-gray-500">
-                                                Created on {formatDate(form.createdAt)} • {form._count?.submissions || 0} Submissions
-                                            </p>
-                                        </div>
-
-                                        <div className="flex items-center gap-2">
-                                            <ButtonWithTooltip tooltipText="View all form submissions">
-                                                <Link href={`/admin/uploads?formId=${form.id}`}>
-                                                    <Button variant="outline" size="sm" className="h-9 bg-white hover:bg-gray-50 text-gray-700 border-gray-200">
-                                                        <FileText className="w-4 h-4 mr-2 text-gray-500" />
-                                                        View Uploads
+                                            <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+                                                <div className="flex items-center gap-2 w-full sm:w-auto">
+                                                    <Link href={`/admin/uploads?formId=${form.id}`} className="flex-1 sm:flex-none">
+                                                        <Button variant="outline" size="sm" className="w-full h-9 bg-white text-gray-600 border-gray-200">
+                                                            <FileText className="w-3.5 h-3.5 mr-1.5" />
+                                                            View Uploads
+                                                        </Button>
+                                                    </Link>
+                                                    <Link href={`/admin/editor?id=${form.id}&tab=configuration`} className="flex-1 sm:flex-none">
+                                                        <Button variant="outline" size="sm" className="w-full h-9 bg-white text-gray-600 border-gray-200">
+                                                            <Pencil className="w-3.5 h-3.5 mr-1.5" />
+                                                            Edit
+                                                        </Button>
+                                                    </Link>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        className="h-9 w-9 text-red-500 hover:text-red-600 hover:bg-red-50"
+                                                        onClick={(e) => {
+                                                            e.preventDefault()
+                                                            e.stopPropagation()
+                                                            openDeleteModal(form.id, form.isAcceptingResponses)
+                                                        }}
+                                                    >
+                                                        <Trash2 className="w-4 h-4" />
                                                     </Button>
-                                                </Link>
-                                            </ButtonWithTooltip>
-                                            <ButtonWithTooltip tooltipText="Edit form">
-                                                <Link href={`/admin/editor?id=${form.id}&tab=configuration`}>
-                                                    <Button variant="outline" size="sm" className="h-9 bg-white hover:bg-gray-50 text-gray-700 border-gray-200 px-4">
-                                                        <Pencil className="w-4 h-4 mr-2 text-gray-500" />
-                                                        Edit
-                                                    </Button>
-                                                </Link>
-                                            </ButtonWithTooltip>
-                                            <ButtonWithTooltip tooltipText="Delete form">
-                                                <button
-                                                    className="h-9 w-9 flex items-center justify-center text-red-600 hover:text-red-700 hover:bg-red-50 rounded-md transition-colors"
-                                                    onClick={(e) => {
-                                                        e.preventDefault()
-                                                        e.stopPropagation()
-                                                        openDeleteModal(form.id, form.isAcceptingResponses)
-                                                    }}
-                                                    type="button"
-                                                >
-                                                    <Trash2 className="w-4 h-4" />
-                                                </button>
-                                            </ButtonWithTooltip>
+                                                </div>
+                                            </div>
                                         </div>
-                                    </div>
-                                )
-                            })}
+                                    )
+                                })}
+                            </div>
                         </div>
                     )}
                 </div>

@@ -1,21 +1,44 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { signIn, useSession } from "next-auth/react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { Lock } from "lucide-react"
+import { Lock, AlertCircle, X } from "lucide-react"
 
 export default function AdminLoginPage() {
     const { data: session, status } = useSession()
+    const searchParams = useSearchParams()
+    const router = useRouter()
     const [step, setStep] = useState<"email" | "password">("email")
     const [mode, setMode] = useState<"login" | "signup">("login")
     const [email, setEmail] = useState("")
     const [password, setPassword] = useState("")
     const [isLoading, setIsLoading] = useState(false)
-    const router = useRouter()
+    const [error, setError] = useState<string | null>(null)
+    
+    useEffect(() => {
+        const errorParam = searchParams.get('error')
+        if (errorParam) {
+            if (errorParam === 'OAuthAccountNotLinked') {
+                setError('This email is already associated with another account. Please try signing in with Google again.')
+            } else if (errorParam === 'OAuthSignin') {
+                setError('Error occurred during sign in. Please try again.')
+            } else if (errorParam === 'OAuthCallback') {
+                setError('Error occurred in the callback. Please try again.')
+            } else if (errorParam === 'OAuthCreateAccount') {
+                setError('Could not create account. Please try again.')
+            } else {
+                setError('An error occurred during authentication. Please try again.')
+            }
+            // Clear error from URL
+            const newUrl = new URL(window.location.href)
+            newUrl.searchParams.delete('error')
+            router.replace(newUrl.pathname + newUrl.search)
+        }
+    }, [searchParams, router])
 
     useEffect(() => {
         if (status === "authenticated") {
@@ -48,6 +71,7 @@ export default function AdminLoginPage() {
     }
 
     const handleGoogleSignIn = async () => {
+        setError(null) // Clear any previous errors
         setIsLoading(true)
         try {
             const signInOptions: any = {
@@ -78,6 +102,7 @@ export default function AdminLoginPage() {
             await signIn("google", signInOptions)
         } catch (error) {
             console.error("Google sign-in exception:", error)
+            setError("Failed to sign in. Please try again.")
             setIsLoading(false)
         }
     }
@@ -101,6 +126,21 @@ export default function AdminLoginPage() {
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4 pt-4">
+                    {error && (
+                        <div className="bg-red-50 border border-red-200 rounded-lg p-3 flex items-start gap-3 animate-in fade-in slide-in-from-top-2">
+                            <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                            <div className="flex-1">
+                                <p className="text-sm text-red-800 font-medium">{error}</p>
+                            </div>
+                            <button
+                                onClick={() => setError(null)}
+                                className="text-red-600 hover:text-red-800 flex-shrink-0"
+                                aria-label="Dismiss error"
+                            >
+                                <X className="w-4 h-4" />
+                            </button>
+                        </div>
+                    )}
                     <Button
                         variant="outline"
                         className="w-full h-11 font-medium text-gray-700 border-gray-300 hover:bg-gray-50"

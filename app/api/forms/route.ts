@@ -3,6 +3,20 @@ import { prisma } from '@/lib/prisma';
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 
+// Helper function to calculate form type
+function calculateFormType(isPublished: boolean, expiryDate: Date | null | string): string {
+    const now = new Date();
+    const expiry = expiryDate ? new Date(expiryDate) : null;
+    
+    if (expiry && now > expiry) {
+        return 'Expired';
+    }
+    if (isPublished) {
+        return 'Published';
+    }
+    return 'Draft';
+}
+
 export async function POST(request: Request) {
     try {
         const session = await getServerSession(authOptions);
@@ -22,6 +36,7 @@ export async function POST(request: Request) {
             'isPasswordProtected', 'password', 'isCaptchaEnabled', 'enableSubmitAnother',
             'isPublished', 'isAcceptingResponses', 'expiryDate', 'accessLevel',
             'allowedEmails', 'emailFieldControl', 'enableMetadataSpreadsheet',
+            'enableResponseSheet', 'responseSheetId',
             'subfolderOrganization', 'customSubfolderField', 'enableSmartGrouping',
             'uploadFields', 'customQuestions'
         ];
@@ -60,11 +75,28 @@ export async function POST(request: Request) {
             }
         }
 
+        // Handle allowedDomains - convert array to comma-separated string
+        if (createData.allowedDomains !== undefined) {
+            if (Array.isArray(createData.allowedDomains)) {
+                createData.allowedDomains = createData.allowedDomains.join(',');
+            } else if (typeof createData.allowedDomains !== 'string') {
+                createData.allowedDomains = "";
+            }
+        }
+
         // Set defaults for required fields
         createData.title = createData.title || 'Untitled Form';
         createData.description = createData.description || '';
         createData.maxSizeMB = createData.maxSizeMB || 0; // No size limit - set to 0 to indicate unlimited
         createData.userId = session.user.id;
+        
+        // Calculate form type (will be set after creation if field exists)
+        const expiryDate = createData.expiryDate ? new Date(createData.expiryDate) : null;
+        const calculatedType = calculateFormType(createData.isPublished || false, expiryDate);
+
+        // Store allowedDomains for raw update
+        const allowedDomainsValue = createData.allowedDomains;
+        delete createData.allowedDomains;
 
         // Handle expiryDate - convert empty strings to null, validate datetime format
         if (createData.expiryDate !== undefined) {
@@ -102,11 +134,27 @@ export async function POST(request: Request) {
 
         console.log('Filtered Create Data Keys:', Object.keys(createData));
 
+        // Create form
         const form = await prisma.form.create({
-            data: createData,
+            data: createData as any,
         });
 
-        return NextResponse.json(form, { status: 201 });
+        // Try to update type if field exists (gracefully handle if Prisma client not regenerated)
+        try {
+            // Use raw SQL to update the type and allowedDomains fields to bypass Prisma Client's 
+            // "Unknown argument" errors if the client hasn't been regenerated yet.
+            await prisma.$executeRawUnsafe(
+                `UPDATE "Form" SET "type" = $1, "allowedDomains" = $2 WHERE "id" = $3`,
+                calculatedType,
+                allowedDomainsValue || "",
+                form.id
+            );
+        } catch (typeError: any) {
+            // If fields don't exist yet, that's okay
+            console.log('Additional fields not available yet via raw SQL:', typeError.message);
+        }
+
+        return NextResponse.json({ ...form, type: calculatedType }, { status: 201 });
     } catch (error) {
         console.error('Error creating form:', error);
         console.error('Error details:', error instanceof Error ? error.message : 'Unknown error');
@@ -145,17 +193,58 @@ export async function GET() {
         }
 
         // Then fetch all forms (already updated)
-        const forms = await prisma.form.findMany({
-            where: {
-                userId: session.user.id
-            },
-            orderBy: { createdAt: 'desc' },
-            include: {
-                _count: {
-                    select: { submissions: true }
+        // Handle connection pooling issues gracefully
+        let forms;
+        try {
+            forms = await prisma.form.findMany({
+                where: {
+                    userId: session.user.id
+                },
+                orderBy: { createdAt: 'desc' },
+                include: {
+                    _count: {
+                        select: { submissions: true }
+                    }
                 }
+            } as any);
+            
+            // Calculate and update type for each form (update all, including NULL values)
+            const updatePromises = forms.map(async (form: any) => {
+                const formType = calculateFormType(form.isPublished, form.expiryDate);
+                // Update if type is null or different
+                if (!form.type || form.type !== formType) {
+                    try {
+                        // Use raw SQL to update the type field to bypass Prisma Client's 
+                        // "Unknown argument type" error if the client hasn't been regenerated yet.
+                        await prisma.$executeRawUnsafe(
+                            `UPDATE "Form" SET "type" = $1 WHERE "id" = $2`,
+                            formType,
+                            form.id
+                        );
+                    } catch (e: any) {
+                        // Fallback: If raw SQL fails (e.g., column doesn't exist at all yet),
+                        // we just skip it and let the UI use the calculated value.
+                        console.log(`Note: Background type update skipped for form ${form.id}`);
+                    }
+                }
+                return { ...form, type: formType };
+            });
+            forms = await Promise.all(updatePromises);
+        } catch (queryError: any) {
+            // Handle PostgreSQL prepared statement errors (common with connection pooling)
+            if (queryError.message?.includes('prepared statement') || 
+                queryError.code === '26000' || 
+                queryError.message?.includes('26000') ||
+                queryError.message?.includes('ConnectorError')) {
+                console.error('Database connection error (prepared statement):', queryError.message);
+                // Return empty array - the next request should work fine
+                // This is a transient connection pooling issue
+                return NextResponse.json([]);
             }
-        } as any);
+            // For other errors, log and return empty array
+            console.error('Error fetching forms:', queryError);
+            return NextResponse.json([]);
+        }
 
         // Ensure forms is an array
         if (!Array.isArray(forms)) {

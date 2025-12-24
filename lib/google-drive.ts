@@ -1,9 +1,7 @@
 import { google } from 'googleapis'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { PrismaClient } from '@prisma/client'
-
-const prisma = new PrismaClient()
+import { prisma } from './prisma'
 
 export async function getDriveClient(userId: string) {
     // Get the user's account with access token

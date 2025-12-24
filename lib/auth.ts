@@ -25,59 +25,63 @@ export const authOptions: NextAuthOptions = {
         strategy: "jwt",
     },
     callbacks: {
-        async signIn({ user, account }) {
-            if (account?.provider === 'google') {
+        async signIn({ user, account, profile }) {
+            if (account?.provider === 'google' && user.email) {
                 try {
-                    // PrismaAdapter will create the user if it doesn't exist
-                    // We need to find or wait for the user to be created
-                    let userId = user.id;
-                    
-                    // If user.id is missing, try to find user by email (PrismaAdapter might have created it)
-                    if (!userId && user.email) {
-                        const existingUser = await prisma.user.findUnique({
-                            where: { email: user.email },
-                            select: { id: true }
-                        });
-                        if (existingUser) {
-                            userId = existingUser.id;
+                    // Check if user already exists by email
+                    const existingUser = await prisma.user.findUnique({
+                        where: { email: user.email },
+                        include: { accounts: true }
+                    });
+
+                    if (existingUser) {
+                        // User exists - check if Google account is linked
+                        const googleAccount = existingUser.accounts.find(
+                            acc => acc.provider === 'google' && acc.providerAccountId === account.providerAccountId
+                        );
+
+                        if (!googleAccount) {
+                            // User exists but Google account not linked - create the link
+                            // This prevents OAuthAccountNotLinked error
+                            await prisma.account.create({
+                                data: {
+                                    userId: existingUser.id,
+                                    type: account.type,
+                                    provider: account.provider,
+                                    providerAccountId: account.providerAccountId,
+                                    refresh_token: account.refresh_token,
+                                    access_token: account.access_token,
+                                    expires_at: account.expires_at,
+                                    token_type: account.token_type,
+                                    scope: account.scope,
+                                    id_token: account.id_token,
+                                    session_state: account.session_state,
+                                }
+                            });
+                            console.log("Linked Google account to existing user:", user.email);
+                            // Update user.id so PrismaAdapter knows to use existing user
+                            user.id = existingUser.id;
                         } else {
-                            // User doesn't exist yet - PrismaAdapter will create it
-                            // Don't block sign-in, let the adapter handle user creation
-                            console.log("New user will be created by adapter:", user.email);
-                            return true; // Allow sign-in to proceed
-                        }
-                    }
-
-                    // Only update tokens if we have a user ID
-                    if (userId) {
-                        const existingAccount = await prisma.account.findFirst({
-                            where: {
-                                userId: userId,
-                                provider: 'google'
-                            }
-                        });
-
-                        if (existingAccount) {
+                            // Update existing account tokens
                             await prisma.account.update({
-                                where: { id: existingAccount.id },
+                                where: { id: googleAccount.id },
                                 data: {
                                     access_token: account.access_token,
                                     expires_at: account.expires_at,
-                                    refresh_token: account.refresh_token || existingAccount.refresh_token, // Keep existing if new one is null
+                                    refresh_token: account.refresh_token || googleAccount.refresh_token,
                                     id_token: account.id_token,
                                 }
                             });
-                        } else {
-                            // Account should be created by PrismaAdapter
-                            console.log("New account will be created by adapter for user:", user.email);
+                            user.id = existingUser.id;
                         }
                     }
+                    // If user doesn't exist, PrismaAdapter will create it automatically
                 } catch (error) {
-                    console.error("Error updating Google account tokens:", error);
-                    // Don't block sign in on token update errors - let PrismaAdapter handle it
+                    console.error("Error in signIn callback:", error);
+                    // Don't block sign-in - let PrismaAdapter handle it
                 }
             }
-            // Always return true to allow PrismaAdapter to create user/account
+            // Always return true to allow authentication
             return true;
         },
         async session({ session, token }) {
@@ -161,6 +165,7 @@ export const authOptions: NextAuthOptions = {
     },
     pages: {
         signIn: '/admin/login',
+        error: '/admin/login',
     },
     secret: process.env.NEXTAUTH_SECRET,
     cookies: {

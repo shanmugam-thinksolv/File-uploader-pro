@@ -20,6 +20,7 @@ export interface EditorFormData {
     allowedEmails: string;
     emailFieldControl: "REQUIRED" | "OPTIONAL" | "NOT_INCLUDED";
     accessProtectionType: "PUBLIC" | "PASSWORD" | "GOOGLE";
+    isPasswordProtected?: boolean;
     password?: string;
     // New optional keys for backend compatibility
     accessProtection?: 'public' | 'password' | 'google_oauth';
@@ -29,6 +30,8 @@ export interface EditorFormData {
 
     // Organization
     enableMetadataSpreadsheet: boolean;
+    enableResponseSheet: boolean;
+    responseSheetId?: string | null;
     subfolderOrganization: "NONE" | "DATE" | "SUBMITTER" | "CUSTOM";
     customSubfolderField: string;
     enableSmartGrouping: boolean;

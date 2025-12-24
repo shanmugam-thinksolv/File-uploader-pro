@@ -1,6 +1,10 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { appendSubmissionToSpreadsheet } from '@/lib/google-sheets';
+import { syncFilesToResponseSheet } from '@/lib/google-sheets-sync';
+import { Prisma } from '@prisma/client';
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 
 export async function POST(request: Request) {
     try {
@@ -28,26 +32,86 @@ export async function POST(request: Request) {
 
         // Fetch form to check if metadata spreadsheet is enabled and if form has expired
         const form = await prisma.form.findUnique({
-            where: { id: formId },
-            select: {
-                userId: true,
-                title: true,
-                enableMetadataSpreadsheet: true,
-                driveFolderId: true,
-                expiryDate: true,
-                isAcceptingResponses: true
-            }
-        });
+            where: { id: formId }
+        }) as any;
+        
+        // Extract needed fields with defaults
+        const formData = {
+            userId: form?.userId,
+            title: form?.title,
+            enableMetadataSpreadsheet: form?.enableMetadataSpreadsheet ?? false,
+            enableResponseSheet: form?.enableResponseSheet ?? false,
+            responseSheetId: form?.responseSheetId,
+            driveFolderId: form?.driveFolderId,
+            expiryDate: form?.expiryDate,
+            isAcceptingResponses: form?.isAcceptingResponses,
+            uploadFields: form?.uploadFields,
+            customQuestions: form?.customQuestions,
+            isPasswordProtected: form?.isPasswordProtected ?? false,
+            password: form?.password,
+            accessLevel: form?.accessLevel,
+            allowedDomains: form?.allowedDomains
+        };
 
-        if (!form) {
+        if (!form || !formData.userId) {
             return NextResponse.json(
                 { error: 'Form not found' },
                 { status: 404 }
             );
         }
 
-        // Check if form is accepting responses
-        if (!form.isAcceptingResponses) {
+        // SECURITY: Check Google Sign-In restriction
+        if (formData.accessLevel === 'INVITED') {
+            const session = await getServerSession(authOptions);
+            if (!session || !session.user || !session.user.email) {
+                return NextResponse.json({ 
+                    error: 'Authentication Required', 
+                    details: 'This form requires Google Sign-In.' 
+                }, { status: 401 });
+            }
+
+            // Check domain if configured
+            const allowedDomains = formData.allowedDomains 
+                ? formData.allowedDomains.split(',').map((d: string) => d.trim().toLowerCase()).filter(Boolean)
+                : [];
+            
+            if (allowedDomains.length > 0) {
+                const userEmail = session.user.email.toLowerCase();
+                const userDomain = userEmail.split('@')[1];
+                if (!userDomain || !allowedDomains.includes(userDomain)) {
+                    return NextResponse.json({ 
+                        error: 'Access Denied', 
+                        details: 'Your email domain is not authorized to submit to this form.' 
+                    }, { status: 403 });
+                }
+            }
+
+            // OVERRIDE: Use guaranteed identity from Google session
+            body.submitterEmail = session.user.email;
+            body.submitterName = session.user.name;
+        }
+        
+        // Use identity from body (which may have been overridden by session above)
+        const finalSubmitterEmail = body.submitterEmail;
+        const finalSubmitterName = body.submitterName;
+
+        // SECURITY: Check password protection (if enabled)
+        if (formData.isPasswordProtected && formData.password) {
+            // Password should be sent in the request body
+            const submittedPassword = body.password;
+            if (!submittedPassword || submittedPassword !== formData.password) {
+                return NextResponse.json(
+                    { 
+                        error: 'Invalid password',
+                        details: 'The password you entered is incorrect.'
+                    },
+                    { status: 401 }
+                );
+            }
+        }
+
+        // SECURITY: Check if form is accepting responses
+        if (!formData.isAcceptingResponses) {
             return NextResponse.json(
                 { error: 'Form is not accepting responses' },
                 { status: 403 }
@@ -55,15 +119,15 @@ export async function POST(request: Request) {
         }
 
         // Check if form has expired
-        if (form.expiryDate) {
-            const expiryDate = new Date(form.expiryDate);
+        if (formData.expiryDate) {
+            const expiryDate = new Date(formData.expiryDate);
             const now = new Date();
             if (now > expiryDate) {
                 return NextResponse.json(
                     {
                         error: 'Form expired',
                         message: 'This form is no longer accepting submissions.',
-                        expiryDate: form.expiryDate
+                        expiryDate: formData.expiryDate
                     },
                     { status: 410 } // 410 Gone
                 );
@@ -71,15 +135,30 @@ export async function POST(request: Request) {
         }
 
         // Normalize files array: If 'files' is provided, use it; otherwise create array from legacy fields
-        let filesArray: Array<{ url: string; name: string; type: string; size: number }> = [];
+        let filesArray: Array<{ 
+            url: string; 
+            name: string; 
+            type: string; 
+            size: number; 
+            fieldId?: string; 
+            label?: string;
+            isFromFolder?: boolean;
+            folderName?: string;
+            relativePath?: string;
+        }> = [];
 
         if (files && Array.isArray(files) && files.length > 0) {
-            // Use the files array provided
+            // Use the files array provided - preserve all metadata for response sheet
             filesArray = files.map((f: any) => ({
                 url: f.url || f.fileUrl || '',
                 name: f.name || f.fileName || '',
                 type: f.type || f.fileType || 'unknown',
-                size: f.size || f.fileSize || 0
+                size: f.size || f.fileSize || 0,
+                fieldId: f.fieldId, // Preserve fieldId for response sheet matching
+                label: f.label, // Preserve label for response sheet matching
+                isFromFolder: f.isFromFolder || false,
+                folderName: f.folderName || undefined,
+                relativePath: f.relativePath || undefined
             }));
         } else if (fileUrl && fileName) {
             // Backward compatibility: Use legacy fields if files array is not provided
@@ -118,7 +197,9 @@ export async function POST(request: Request) {
 
         // Create ONE submission record per file
         // This ensures each file appears as a separate row in the database
-        const submissions = await Promise.all(
+        let submissions;
+        try {
+            submissions = await Promise.all(
             filesArray.map((file) =>
                 prisma.submission.create({
                     data: {
@@ -129,16 +210,105 @@ export async function POST(request: Request) {
                         fileSize: file.size || 0,
                         files: filesArray, // Store all files in JSON for reference
                         answers: answers || [],
-                        submitterName,
-                        submitterEmail,
+                        submitterName: finalSubmitterName,
+                        submitterEmail: finalSubmitterEmail,
                         metadata: metadata || {},
                     } as any,
                 })
             )
         );
+        } catch (createError: any) {
+            // Handle PostgreSQL prepared statement errors (connection pooling issue)
+            if (createError.message?.includes('prepared statement') || 
+                createError.code === '26000' || 
+                createError.message?.includes('26000')) {
+                console.error('[Submit] Connection error, retrying with single transaction...');
+                
+                // Retry with a single transaction to force connection refresh
+                submissions = [];
+                for (const file of filesArray) {
+                    try {
+                        const sub = await prisma.submission.create({
+                            data: {
+                                formId,
+                                fileUrl: file.url,
+                                fileName: file.name,
+                                fileType: file.type || 'unknown',
+                                fileSize: file.size || 0,
+                                files: filesArray,
+                                answers: answers || [],
+                                submitterName: finalSubmitterName,
+                                submitterEmail: finalSubmitterEmail,
+                                metadata: metadata || {},
+                            } as any,
+                        });
+                        submissions.push(sub);
+                    } catch (retryError) {
+                        console.error('[Submit] Retry failed for file:', file.name, retryError);
+                        throw retryError;
+                    }
+                }
+            } else {
+                throw createError;
+            }
+        }
+
+        // If response sheet is enabled, sync files to response sheet
+        if (formData.enableResponseSheet && formData.userId) {
+            try {
+                // Parse upload fields to get field labels
+                let uploadFields: Array<{ id: string; label: string }> = [];
+                if (formData.uploadFields) {
+                    uploadFields = typeof formData.uploadFields === 'string' 
+                        ? JSON.parse(formData.uploadFields) 
+                        : formData.uploadFields;
+                }
+
+                // Prepare files with field labels
+                const filesForSync = filesArray.map((file) => {
+                    const field = uploadFields.find(f => f.id === file.fieldId);
+                    const uploadType = file.isFromFolder ? 'folder' : 'file';
+                    const relativePath = file.relativePath || file.name;
+                    
+                    return {
+                        url: file.url,
+                        name: file.name,
+                        size: file.size,
+                        fieldId: file.fieldId,
+                        fieldLabel: field?.label || 'Unknown',
+                        uploadType: uploadType as 'file' | 'folder',
+                        folderName: file.folderName || '',
+                        relativePath: relativePath
+                    };
+                });
+
+                const firstSubmissionId = submissions[0]?.id || '';
+                
+                await syncFilesToResponseSheet(
+                    formData.userId,
+                    formId,
+                    formData.title || 'Untitled Form',
+                    firstSubmissionId,
+                    {
+                        timestamp: new Date().toISOString(),
+                        submitterEmail: finalSubmitterEmail || null,
+                        files: filesForSync
+                    }
+                );
+
+                console.log(`[Submit] Synced ${filesForSync.length} file(s) to response sheet`);
+            } catch (syncError: any) {
+                // Log error but don't fail the submission
+                console.error('[Submit] Failed to sync to response sheet:', syncError);
+                
+                if (syncError.message?.includes('PERMISSION_ERROR')) {
+                    console.error('[Submit] Response sheet permission error - user may need to reconnect Google account');
+                }
+            }
+        }
 
         // If metadata spreadsheet is enabled, append to spreadsheet (only once, not per file)
-        if (form.enableMetadataSpreadsheet && form.userId) {
+        if (formData.enableMetadataSpreadsheet && formData.userId) {
             try {
                 // Format files array for spreadsheet
                 const filesForSpreadsheet = filesArray.map((f) => ({
@@ -149,14 +319,14 @@ export async function POST(request: Request) {
                 }));
 
                 await appendSubmissionToSpreadsheet(
-                    form.userId,
+                    formData.userId,
                     formId,
-                    form.title,
-                    form.driveFolderId,
+                    formData.title,
+                    formData.driveFolderId,
                     {
                         timestamp: new Date().toISOString(),
-                        submitterName: submitterName || null,
-                        submitterEmail: submitterEmail || null,
+                        submitterName: finalSubmitterName || null,
+                        submitterEmail: finalSubmitterEmail || null,
                         files: filesForSpreadsheet,
                         answers: answers || [],
                         metadata: metadata || {}

@@ -34,7 +34,23 @@ function UploadFieldItem({ field, index, updateUploadFieldItem, removeUploadFiel
     const deleteTooltipTimeoutRef = useRef<NodeJS.Timeout | null>(null)
     const multipleErrorTimeoutRef = useRef<NodeJS.Timeout | null>(null)
     const tooltipAutoShowTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+    const inputRef = useRef<HTMLInputElement>(null)
     const isFolderUploadEnabled = field.allowFolder === true
+    
+    // Auto-focus on the first field when it's rendered
+    useEffect(() => {
+        if (index === 0 && inputRef.current) {
+            // Small delay to ensure DOM is ready
+            setTimeout(() => {
+                inputRef.current?.focus()
+                // Move cursor to end of text without selecting
+                if (inputRef.current) {
+                    const length = inputRef.current.value.length
+                    inputRef.current.setSelectionRange(length, length)
+                }
+            }, 100)
+        }
+    }, [index])
 
     // Function to hide tooltip
     const hideTooltip = () => {
@@ -97,10 +113,11 @@ function UploadFieldItem({ field, index, updateUploadFieldItem, removeUploadFiel
             </div>
 
             <div className="flex-1 space-y-5">
-                <div className="grid gap-5 sm:grid-cols-2">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                     <div className="space-y-2">
                         <Label className="text-sm font-medium text-slate-700">Field Name</Label>
                         <Input
+                            ref={inputRef}
                             value={field.label}
                             onChange={(e) => updateUploadFieldItem(field.id, { label: e.target.value })}
                             placeholder="e.g., Resume"
@@ -368,7 +385,7 @@ export function UploadsStep({ formData, updateField, addUploadField, removeUploa
                                                 updateUploadFieldItem={updateUploadFieldItem}
                                                 removeUploadField={removeUploadField}
                                             />
-                                        ))}
+                                    ))}
                                     </div>
                                     {formData.uploadFields.length > 0 && (
                                         <div className="text-center p-6 rounded-xl bg-slate-50 border border-slate-100">

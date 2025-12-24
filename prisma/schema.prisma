@@ -40,12 +40,16 @@ model Form {
   isPublished         Boolean  @default(false)
   isAcceptingResponses Boolean @default(true)
   expiryDate          DateTime?
+  type                String?  // "Published", "Draft", "Expired"
   accessLevel         String   @default("ANYONE") // "ANYONE", "INVITED"
   allowedEmails       String   @default("") // Comma-separated
+  allowedDomains      String   @default("") // Comma-separated
   emailFieldControl   String   @default("OPTIONAL") // "REQUIRED", "OPTIONAL", "NOT_INCLUDED"
   
   // Metadata & Organization
   enableMetadataSpreadsheet Boolean @default(false)
+  enableResponseSheet        Boolean @default(false)
+  responseSheetId            String? // Store the Google Sheet ID for this form
   subfolderOrganization     String  @default("NONE") // "NONE", "DATE", "SUBMITTER", "CUSTOM"
   customSubfolderField      String?
   enableSmartGrouping       Boolean @default(false)

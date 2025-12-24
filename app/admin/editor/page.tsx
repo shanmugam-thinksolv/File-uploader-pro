@@ -24,7 +24,7 @@ import {
     DialogTrigger,
 } from "@/components/ui/dialog"
 import { QRCodeCanvas } from "qrcode.react"
-import { AccessTab } from './components/AccessTab';
+import { AccessTab } from './components/steps/AccessStep';
 import { TabTransition } from './components/TabTransition';
 import { GeneralStep } from './components/steps/GeneralStep';
 import { UploadsStep } from './components/steps/UploadsStep';
@@ -67,7 +67,7 @@ function EditorContent() {
 
     const [formData, setFormData] = useState<EditorFormData>({
         id: "",
-        title: "",
+        title: "Untitled Form",
         description: "",
         allowedTypes: "any",
         driveEnabled: true,
@@ -77,6 +77,8 @@ function EditorContent() {
         isAcceptingResponses: true,
         expiryDate: null as string | null,
         enableMetadataSpreadsheet: false,
+        enableResponseSheet: false,
+        responseSheetId: null,
         subfolderOrganization: "NONE",
         customSubfolderField: "",
         enableSmartGrouping: false,
@@ -88,8 +90,9 @@ function EditorContent() {
         accessLevel: "ANYONE",
         allowedEmails: "",
 
-        emailFieldControl: "OPTIONAL",
+        emailFieldControl: "NOT_INCLUDED",
         accessProtectionType: "PUBLIC",
+        isPasswordProtected: false,
         password: "",
         accessProtection: "public",
         driveIntegrationEnabled: true,
@@ -130,8 +133,7 @@ function EditorContent() {
                         uploadFields = []
                     }
 
-                    // Convert "Untitled Form" to empty string (treat as placeholder)
-                    const title = data.title === 'Untitled Form' ? '' : (data.title || '')
+                    const title = data.title || 'Untitled Form'
 
                     // Ensure expiryDate has proper time component if it exists
                     let expiryDate = data.expiryDate
@@ -148,14 +150,34 @@ function EditorContent() {
                         }
                     }
 
-                    setFormData(prev => ({
-                        ...prev,
-                        ...data,
-                        title,
-                        expiryDate,
-                        uploadFields,
-                        customQuestions
-                    }))
+                    setFormData(prev => {
+                        // Derive accessProtectionType from database fields
+                        let accessProtectionType: "PUBLIC" | "PASSWORD" | "GOOGLE" = "PUBLIC"
+                        if (data.isPasswordProtected) {
+                            accessProtectionType = 'PASSWORD'
+                        } else if (data.accessLevel === 'INVITED') {
+                            accessProtectionType = 'GOOGLE'
+                        }
+
+                        // Handle allowedDomains - convert comma-separated string back to array
+                        let allowedDomains = data.allowedDomains || []
+                        if (typeof allowedDomains === 'string') {
+                            allowedDomains = allowedDomains.split(',').map((s: string) => s.trim()).filter(Boolean)
+                        }
+
+                        return {
+                            ...prev,
+                            ...data,
+                            title,
+                            expiryDate,
+                            uploadFields,
+                            customQuestions,
+                            accessProtectionType,
+                            allowedDomains,
+                            enableResponseSheet: data.enableResponseSheet ?? false,
+                            responseSheetId: data.responseSheetId ?? null
+                        }
+                    })
                 })
                 .catch(err => console.error('Failed to load form', err))
         } else if (formId === 'new' || !formId) {
@@ -165,7 +187,7 @@ function EditorContent() {
                 if (prev.uploadFields.length === 0 && prev.customQuestions.length === 0) {
                     const defaultUploadField: UploadField = {
                         id: crypto.randomUUID(),
-                        label: "",
+                        label: "Untitled Field",
                         allowedTypes: "any",
                         required: true, // First field is required by default
                         allowMultiple: true,
@@ -227,6 +249,11 @@ function EditorContent() {
         }
     }, [formData, formId, autoSave])
 
+    // Auto-scroll to top when switching steps
+    useEffect(() => {
+        window.scrollTo({ top: 0, behavior: 'smooth' })
+    }, [currentStep])
+
     const handleSave = async (shouldPublish: boolean = false) => {
         setLoading(true)
         try {
@@ -258,16 +285,39 @@ function EditorContent() {
                     console.error('Failed to save to localStorage', e)
                 }
 
-                // Use router.refresh() to ensure dashboard refreshes
-                router.refresh()
-                router.push('/admin/dashboard')
+                // If it's a new form being saved as draft (not published yet), 
+                // update the URL without redirecting to dashboard
+                if (method === 'POST' && !shouldPublish) {
+                    // Update formData with the new ID so it's available in the UI
+                    setFormData(prev => ({ ...prev, id: data.id }))
+                    
+                    // Update URL with the new ID
+                    const params = new URLSearchParams(searchParams.toString())
+                    params.set('id', data.id)
+                    router.replace(`${window.location.pathname}?${params.toString()}`)
+                    
+                    // Return the new ID so the caller can use it
+                    return data.id
+                }
+
+                // Redirect to dashboard for:
+                // 1. Publishing (new or existing form)
+                // 2. Explicitly saving an existing form as draft (not auto-save)
+                if (!isSaving) {
+                    router.refresh()
+                    router.push('/admin/dashboard')
+                }
+                
+                return data.id
             } else {
                 const errorData = await res.json()
                 showMessage('Error', errorData.error || errorData.details || 'Failed to save form', 'error')
+                return null
             }
         } catch (error) {
             console.error('Save failed:', error)
             showMessage('Error', 'Failed to save form', 'error')
+            return null
         } finally {
             setLoading(false)
         }
@@ -394,7 +444,7 @@ function EditorContent() {
         if (formData.uploadFields.length >= 3) return
         const newField = {
             id: crypto.randomUUID(),
-            label: "",
+            label: "Untitled Field",
             allowedTypes: "any",
             required: formData.uploadFields.length === 0, // First field is required by default, others are not
             allowMultiple: true, // Checked by default
@@ -440,14 +490,14 @@ function EditorContent() {
     return (
         <div className="min-h-screen bg-slate-50">
             {/* Fixed Top Bar */}
-            <div className="sticky top-0 z-50 bg-white border-b border-gray-200 shadow-sm">
-                <div className="mx-auto px-6 py-4 max-w-[1600px]">
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-6">
-                            <h1 className="text-2xl font-bold text-gray-900">{formData.title}</h1>
+            <div className="sticky top-0 z-[40] bg-white border-b border-gray-200 shadow-sm">
+                <div className="mx-auto px-4 sm:px-6 py-3 sm:py-4 max-w-[1600px]">
+                    <div className="flex items-center justify-between gap-4">
+                        <div className="flex items-center gap-3 sm:gap-6 min-w-0">
+                            <h1 className="text-lg sm:text-2xl font-bold text-gray-900 truncate">{formData.title}</h1>
                         </div>
-                        <div className="flex items-center gap-3">
-                            <div className="flex items-center gap-2 px-3 py-1.5 bg-gradient-to-r from-primary-50 to-purple-50 rounded-full border border-primary-100">
+                        <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
+                            <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-gradient-to-r from-primary-50 to-purple-50 rounded-full border border-primary-100">
                                 <div className="w-2 h-2 rounded-full bg-primary-500 animate-pulse"></div>
                                 <span className="text-xs font-medium text-primary-700">
                                     {isSaving ? 'Auto-saving...' : 'All changes saved'}
@@ -457,28 +507,29 @@ function EditorContent() {
                                 variant="outline"
                                 onClick={() => handleSave(false)}
                                 disabled={loading}
-                                className="h-10 px-6 font-medium border-gray-300 hover:border-primary-300 hover:bg-primary-50/50 transition-all shadow-sm hover:shadow-md"
+                                className="h-9 sm:h-10 px-3 sm:px-6 font-medium border-gray-300 hover:border-primary-300 hover:bg-primary-50/50 transition-all shadow-sm hover:shadow-md text-xs sm:text-sm"
                             >
-                                <Save className="w-4 h-4 mr-2" />
-                                {loading ? 'Saving...' : 'Save Draft'}
+                                <Save className="w-3.5 h-3.5 sm:w-4 sm:h-4 sm:mr-2" />
+                                <span className="hidden sm:inline">{loading ? 'Saving...' : 'Save Draft'}</span>
+                                <span className="sm:hidden">{loading ? '...' : 'Save'}</span>
                             </Button>
                             <Dialog open={isPublishOpen} onOpenChange={setIsPublishOpen}>
-                                <DialogContent className="sm:max-w-2xl p-0 overflow-hidden gap-0 border-0 shadow-2xl bg-white rounded-2xl">
+                                <DialogContent className="sm:max-w-2xl p-0 overflow-hidden gap-0 border-0 shadow-2xl bg-white rounded-2xl max-h-[90vh] overflow-y-auto sm:max-h-none z-[150]">
                                     {/* Modern Header */}
-                                    <div className="px-8 pt-8 pb-6 border-b border-gray-100">
-                                        <div className="flex items-start justify-between">
+                                    <div className="px-4 sm:px-8 pt-6 sm:pt-8 pb-4 sm:pb-6 border-b border-gray-100">
+                                        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
                                             <div>
-                                                <DialogTitle className="text-2xl font-bold text-gray-900 flex items-center gap-3">
+                                                <DialogTitle className="text-xl sm:text-2xl font-bold text-gray-900 flex items-center gap-3">
                                                     <div className="p-2 bg-primary-50 rounded-lg">
-                                                        <Globe className="w-6 h-6 text-primary-600" />
+                                                        <Globe className="w-5 h-5 sm:w-6 sm:h-6 text-primary-600" />
                                                     </div>
                                                     Publish & Share
                                                 </DialogTitle>
-                                                <DialogDescription className="text-gray-500 mt-2 text-base">
+                                                <DialogDescription className="text-gray-500 mt-2 text-sm sm:text-base">
                                                     Your form is ready. Share it with the world or restrict access.
                                                 </DialogDescription>
                                             </div>
-                                            <div className="flex items-center gap-3 bg-gray-50 px-4 py-2 rounded-full border border-gray-200">
+                                            <div className="flex items-center gap-3 bg-gray-50 px-4 py-2 rounded-full border border-gray-200 self-start sm:self-auto">
                                                 <div className={`w-2.5 h-2.5 rounded-full ${formData.isAcceptingResponses ? 'bg-green-500 animate-pulse' : 'bg-gray-400'}`} />
                                                 <span className="text-sm font-medium text-gray-700">
                                                     {formData.isAcceptingResponses ? 'Live' : 'Inactive'}
@@ -486,104 +537,98 @@ function EditorContent() {
                                                 <Switch
                                                     checked={formData.isAcceptingResponses}
                                                     onCheckedChange={(c) => updateField('isAcceptingResponses', c)}
-                                                    className="ml-2 data-[state=checked]:bg-primary-600"
+                                                    className="ml-2 scale-90 sm:scale-100 data-[state=checked]:bg-primary-600"
                                                 />
                                             </div>
                                         </div>
                                     </div>
 
-                                    <div className="p-8">
+                                    <div className="p-4 sm:p-8">
                                         <Tabs defaultValue="link" className="w-full">
-                                            <TabsList className="w-full mb-6 grid grid-cols-3">
-                                                <TabsTrigger value="link" className="data-[state=active]:text-primary-600">
-                                                    <Link2 className="w-4 h-4 mr-2 text-primary-600" /> Link
+                                            <TabsList className="w-full mb-6 grid grid-cols-3 h-10 sm:h-12 bg-gray-100/50 p-1 rounded-xl">
+                                                <TabsTrigger value="link" className="rounded-lg data-[state=active]:bg-white data-[state=active]:text-primary-600 data-[state=active]:shadow-sm">
+                                                    <Link2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 sm:mr-2" /> <span className="text-xs sm:text-sm">Link</span>
                                                 </TabsTrigger>
-                                                <TabsTrigger value="email" className="data-[state=active]:text-primary-600">
-                                                    <Mail className="w-4 h-4 mr-2 text-primary-600" /> Email
+                                                <TabsTrigger value="email" className="rounded-lg data-[state=active]:bg-white data-[state=active]:text-primary-600 data-[state=active]:shadow-sm">
+                                                    <Mail className="w-3.5 h-3.5 sm:w-4 sm:h-4 sm:mr-2" /> <span className="text-xs sm:text-sm">Email</span>
                                                 </TabsTrigger>
-                                                <TabsTrigger value="embed" className="data-[state=active]:text-primary-600">
-                                                    <Code className="w-4 h-4 mr-2 text-primary-600" /> Embed
+                                                <TabsTrigger value="embed" className="rounded-lg data-[state=active]:bg-white data-[state=active]:text-primary-600 data-[state=active]:shadow-sm">
+                                                    <Code className="w-3.5 h-3.5 sm:w-4 sm:h-4 sm:mr-2" /> <span className="text-xs sm:text-sm">Embed</span>
                                                 </TabsTrigger>
                                             </TabsList>
 
                                             {/* Link Tab */}
-                                            <TabsContent value="link" className="space-y-8">
+                                            <TabsContent value="link" className="space-y-6 sm:space-y-8">
                                                 <div className="space-y-4">
-                                                    <Label className="text-sm font-semibold text-gray-900 uppercase tracking-wide">Public Link</Label>
-                                                    <div className="flex gap-3">
+                                                    <Label className="text-xs sm:text-sm font-semibold text-gray-900 uppercase tracking-wide">Public Link</Label>
+                                                    <div className="flex flex-col sm:flex-row gap-3">
                                                         <div className="relative flex-1 group">
                                                             <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none">
-                                                                <Link2 className="h-5 w-5 text-gray-400 group-focus-within:text-primary-500 transition-colors" />
+                                                                <Link2 className="h-4 w-4 sm:h-5 sm:w-5 text-gray-400 group-focus-within:text-primary-500 transition-colors" />
                                                             </div>
                                                             <Input
                                                                 readOnly
-                                                                value={formId ? `${typeof window !== 'undefined' ? window.location.origin : ''}/upload/${formId}` : 'Save form first'}
-                                                                className="pl-12 h-12 bg-gray-50 border-gray-200 focus:bg-white focus:border-primary-500 focus:ring-4 focus:ring-primary-500/10 transition-all font-mono text-sm rounded-xl text-gray-600"
+                                                                value={(formId && formId !== 'new') || formData.id ? `${typeof window !== 'undefined' ? window.location.origin : ''}/upload/${formId && formId !== 'new' ? formId : formData.id}` : 'Save form first'}
+                                                                className="pl-10 sm:pl-12 h-11 sm:h-12 bg-gray-50 border-gray-200 focus:bg-white focus:border-primary-500 focus:ring-4 focus:ring-primary-500/10 transition-all font-mono text-xs sm:text-sm rounded-xl text-gray-600"
                                                             />
                                                         </div>
                                                         <Button
                                                             size="lg"
-                                                            className={`h-12 px-6 font-medium transition-all ${copied ? 'bg-green-600 hover:bg-green-700 text-white' : 'bg-gray-900 hover:bg-gray-800 text-white'}`}
+                                                            className={`h-11 sm:h-12 px-6 font-medium transition-all ${copied ? 'bg-green-600 hover:bg-green-700 text-white' : 'bg-gray-900 hover:bg-gray-800 text-white'}`}
                                                             onClick={copyLink}
                                                         >
                                                             {copied ? (
-                                                                <>
-                                                                    <Check className="w-4 h-4 mr-2" />
-                                                                    Copied
-                                                                </>
+                                                                <><Check className="w-4 h-4 mr-2" /> Copied</>
                                                             ) : (
-                                                                <>
-                                                                    <Copy className="w-4 h-4 mr-2" />
-                                                                    Copy
-                                                                </>
+                                                                <><Copy className="w-4 h-4 mr-2" /> Copy</>
                                                             )}
                                                         </Button>
                                                     </div>
                                                 </div>
 
                                                 {/* Quick Actions Grid */}
-                                                <div className="grid grid-cols-2 gap-4">
+                                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                                                     <button
                                                         onClick={handleShortenUrl}
-                                                        className="group flex items-center gap-4 p-4 rounded-xl border border-gray-200 hover:border-primary-200 hover:bg-primary-50/50 transition-all text-left"
+                                                        className="group flex items-center gap-3 sm:gap-4 p-3 sm:p-4 rounded-xl border border-gray-200 hover:border-primary-200 hover:bg-primary-50/50 transition-all text-left"
                                                     >
-                                                        <div className="w-12 h-12 rounded-full bg-primary-100 flex items-center justify-center text-primary-600 group-hover:scale-110 transition-transform">
-                                                            {shortenLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Link2 className="w-5 h-5" />}
+                                                        <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-primary-100 flex items-center justify-center text-primary-600 group-hover:scale-110 transition-transform">
+                                                            {shortenLoading ? <Loader2 className="w-4 h-4 sm:w-5 sm:h-5 animate-spin" /> : <Link2 className="w-4 h-4 sm:w-5 sm:h-5" />}
                                                         </div>
                                                         <div>
-                                                            <div className="font-semibold text-gray-900">Shorten URL</div>
-                                                            <div className="text-xs text-gray-500 mt-0.5">Get a compact link</div>
+                                                            <div className="font-semibold text-gray-900 text-sm sm:text-base">Shorten URL</div>
+                                                            <div className="text-[10px] sm:text-xs text-gray-500 mt-0.5">Get a compact link</div>
                                                         </div>
                                                     </button>
 
                                                     <Dialog open={showQrCode} onOpenChange={setShowQrCode}>
                                                         <DialogTrigger asChild>
-                                                            <button className="group flex items-center gap-4 p-4 rounded-xl border border-gray-200 hover:border-primary-200 hover:bg-primary-50/50 transition-all text-left">
-                                                                <div className="w-12 h-12 rounded-full bg-purple-100 flex items-center justify-center text-purple-600 group-hover:scale-110 transition-transform">
-                                                                    <QrCode className="w-5 h-5" />
+                                                            <button className="group flex items-center gap-3 sm:gap-4 p-3 sm:p-4 rounded-xl border border-gray-200 hover:border-primary-200 hover:bg-primary-50/50 transition-all text-left">
+                                                                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-purple-100 flex items-center justify-center text-purple-600 group-hover:scale-110 transition-transform">
+                                                                    <QrCode className="w-4 h-4 sm:w-5 sm:h-5" />
                                                                 </div>
                                                                 <div>
-                                                                    <div className="font-semibold text-gray-900">QR Code</div>
-                                                                    <div className="text-xs text-gray-500 mt-0.5">Scan to open on mobile</div>
+                                                                    <div className="font-semibold text-gray-900 text-sm sm:text-base">QR Code</div>
+                                                                    <div className="text-[10px] sm:text-xs text-gray-500 mt-0.5">Scan to open on mobile</div>
                                                                 </div>
                                                             </button>
                                                         </DialogTrigger>
-                                                        <DialogContent className="sm:max-w-sm flex flex-col items-center justify-center py-10">
+                                                        <DialogContent className="sm:max-w-sm flex flex-col items-center justify-center py-6 sm:py-10">
                                                             <DialogHeader>
                                                                 <DialogTitle className="text-center">Scan to Upload</DialogTitle>
                                                                 <DialogDescription className="text-center">
                                                                     Scan this QR code to open the upload form on your mobile device.
                                                                 </DialogDescription>
                                                             </DialogHeader>
-                                                            <div className="p-6 bg-white rounded-2xl shadow-sm border border-gray-100 mt-6">
+                                                            <div className="p-4 sm:p-6 bg-white rounded-2xl shadow-sm border border-gray-100 mt-4 sm:mt-6">
                                                                 <QRCodeCanvas
-                                                                    value={formId ? `${typeof window !== 'undefined' ? window.location.origin : ''}/upload/${formId}` : ''}
-                                                                    size={200}
+                                                                    value={(formId && formId !== 'new') || formData.id ? `${typeof window !== 'undefined' ? window.location.origin : ''}/upload/${formId && formId !== 'new' ? formId : formData.id}` : ''}
+                                                                    size={typeof window !== 'undefined' && window.innerWidth < 640 ? 160 : 200}
                                                                     level={"H"}
                                                                     includeMargin={true}
                                                                 />
                                                             </div>
-                                                            <Button className="mt-8 w-full" onClick={() => window.print()}>
+                                                            <Button className="mt-6 sm:mt-8 w-full" onClick={() => window.print()}>
                                                                 Print QR Code
                                                             </Button>
                                                         </DialogContent>
@@ -592,38 +637,41 @@ function EditorContent() {
                                             </TabsContent>
 
                                             {/* Email Tab */}
-                                            <TabsContent value="email" className="space-y-6">
+                                            <TabsContent value="email" className="space-y-4 sm:space-y-6">
                                                 <div className="space-y-4">
                                                     <div className="space-y-2">
-                                                        <Label>Subject Line</Label>
+                                                        <Label className="text-sm">Subject Line</Label>
                                                         <Input
                                                             value={emailInviteSubject}
                                                             onChange={(e) => setEmailInviteSubject(e.target.value)}
+                                                            className="h-10 sm:h-11"
                                                         />
                                                     </div>
                                                     <div className="space-y-2">
-                                                        <Label>Message Body</Label>
+                                                        <Label className="text-sm">Message Body</Label>
                                                         <Textarea
                                                             value={emailInviteMessage}
                                                             onChange={(e) => setEmailInviteMessage(e.target.value)}
-                                                            rows={4}
+                                                            rows={typeof window !== 'undefined' && window.innerWidth < 640 ? 3 : 4}
+                                                            className="text-sm"
                                                         />
                                                     </div>
                                                 </div>
 
-                                                <div className="p-4 bg-blue-50 text-blue-800 rounded-lg text-sm border border-blue-100 flex items-start gap-2">
+                                                <div className="p-3 sm:p-4 bg-blue-50 text-blue-800 rounded-lg text-xs sm:text-sm border border-blue-100 flex items-start gap-2">
                                                     <Mail className="w-4 h-4 mt-0.5 flex-shrink-0" />
                                                     <p>
-                                                        This will open your default email client with a pre-filled message containing the link to your form.
+                                                        This will open your default email client with a pre-filled message.
                                                     </p>
                                                 </div>
 
-                                                <div className="flex gap-3">
+                                                <div className="flex flex-col sm:flex-row gap-3">
                                                     <Button
                                                         variant="outline"
                                                         className="flex-1 h-11"
                                                         onClick={() => {
-                                                            const link = formId ? `${window.location.origin}/upload/${formId}` : 'Save form first'
+                                                            const currentId = (formId && formId !== 'new') ? formId : formData.id
+                                                            const link = currentId ? `${window.location.origin}/upload/${currentId}` : 'Save form first'
                                                             const fullBody = `${emailInviteMessage}\n\n${link}`
                                                             navigator.clipboard.writeText(`Subject: ${emailInviteSubject}\n\n${fullBody}`)
                                                             showMessage('Copied', 'Email content copied to clipboard', 'success')
@@ -634,7 +682,8 @@ function EditorContent() {
                                                     <Button
                                                         className="flex-1 h-11 bg-primary-600 hover:bg-primary-700 text-white"
                                                         onClick={() => {
-                                                            const link = formId ? `${window.location.origin}/upload/${formId}` : 'Save form first'
+                                                            const currentId = (formId && formId !== 'new') ? formId : formData.id
+                                                            const link = currentId ? `${window.location.origin}/upload/${currentId}` : 'Save form first'
                                                             const fullBody = `${emailInviteMessage}\n\n${link}`
                                                             window.open(`mailto:?subject=${encodeURIComponent(emailInviteSubject)}&body=${encodeURIComponent(fullBody)}`)
                                                         }}
@@ -645,28 +694,29 @@ function EditorContent() {
                                             </TabsContent>
 
                                             {/* Embed Tab */}
-                                            <TabsContent value="embed" className="space-y-6">
+                                            <TabsContent value="embed" className="space-y-4 sm:space-y-6">
                                                 <div className="space-y-4">
                                                     <div className="space-y-2">
-                                                        <Label>Embed Code</Label>
-                                                        <p className="text-xs text-gray-500 mb-2">
-                                                            Copy and paste this code into your website's HTML to display the upload form.
+                                                        <Label className="text-sm">Embed Code</Label>
+                                                        <p className="text-[10px] sm:text-xs text-gray-500 mb-2">
+                                                            Copy and paste this code into your website's HTML.
                                                         </p>
                                                         <div className="relative">
                                                             <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none">
-                                                                <Code className="h-5 w-5 text-gray-400" />
+                                                                <Code className="h-4 w-4 sm:h-5 sm:w-5 text-gray-400" />
                                                             </div>
                                                             <Textarea
                                                                 readOnly
-                                                                value={formId ? `<iframe src="${typeof window !== 'undefined' ? window.location.origin : ''}/upload/${formId}" width="100%" height="800px" style="border:0; border-radius: 8px; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);"></iframe>` : 'Save form first'}
-                                                                className="pl-12 pr-32 pb-12 min-h-[120px] bg-slate-900 border-slate-800 text-slate-100 font-mono text-xs rounded-xl focus:ring-primary-500/50 resize-none"
+                                                                value={(formId && formId !== 'new') || formData.id ? `<iframe src="${typeof window !== 'undefined' ? window.location.origin : ''}/upload/${formId && formId !== 'new' ? formId : formData.id}" width="100%" height="800px" style="border:0; border-radius: 8px; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);"></iframe>` : 'Save form first'}
+                                                                className="pl-10 sm:pl-12 pr-4 pb-14 sm:pb-12 min-h-[120px] bg-slate-900 border-slate-800 text-slate-100 font-mono text-[10px] sm:text-xs rounded-xl focus:ring-primary-500/50 resize-none"
                                                             />
                                                             <div className="absolute bottom-3 right-3">
                                                                 <Button
                                                                     size="sm"
-                                                                    className="h-8 bg-white text-primary-600 hover:bg-gray-100 font-medium"
+                                                                    className="h-8 bg-white text-primary-600 hover:bg-gray-100 font-medium text-xs"
                                                                     onClick={() => {
-                                                                        const code = `<iframe src="${window.location.origin}/upload/${formId}" width="100%" height="800px" style="border:0; border-radius: 8px; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);"></iframe>`
+                                                                        const currentId = (formId && formId !== 'new') ? formId : formData.id
+                                                                        const code = `<iframe src="${window.location.origin}/upload/${currentId}" width="100%" height="800px" style="border:0; border-radius: 8px; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);"></iframe>`
                                                                         navigator.clipboard.writeText(code)
                                                                         showMessage('Copied', 'Embed code copied to clipboard', 'success')
                                                                     }}
@@ -680,43 +730,50 @@ function EditorContent() {
                                             </TabsContent>
                                         </Tabs>
 
-                                        <div className="border-t border-gray-100"></div>
+                                        <div className="my-6 border-t border-gray-100"></div>
 
                                         {/* Access Control */}
                                         <div className="space-y-4">
-                                            <Label className="text-sm font-semibold text-gray-900 uppercase tracking-wide">Who can respond?</Label>
+                                            <Label className="text-xs sm:text-sm font-semibold text-gray-900 uppercase tracking-wide">Who can respond?</Label>
 
-
-                                            <div className="grid grid-cols-2 gap-4">
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                                                 <div
-                                                    onClick={() => updateField('accessLevel', 'ANYONE')}
-                                                    className={`cursor-pointer relative flex items-start p-4 rounded-xl border-2 transition-all ${formData.accessLevel === 'ANYONE'
+                                                    onClick={() => {
+                                                        updateField('accessLevel', 'ANYONE')
+                                                        updateField('accessProtectionType', 'PUBLIC')
+                                                        updateField('isPasswordProtected', false)
+                                                    }}
+                                                    className={`cursor-pointer relative flex items-start p-3 sm:p-4 rounded-xl border-2 transition-all ${formData.accessLevel === 'ANYONE'
                                                         ? 'border-primary-600 bg-primary-50/30'
                                                         : 'border-gray-100 hover:border-gray-200 hover:bg-gray-50'
                                                         }`}
                                                 >
-                                                    <div className={`mt-0.5 w-5 h-5 rounded-full border flex items-center justify-center flex-shrink-0 ${formData.accessLevel === 'ANYONE' ? 'border-primary-600' : 'border-gray-300'}`}>
-                                                        {formData.accessLevel === 'ANYONE' && <div className="w-2.5 h-2.5 rounded-full bg-primary-600" />}
+                                                    <div className={`mt-0.5 w-4 h-4 sm:w-5 sm:h-5 rounded-full border flex items-center justify-center flex-shrink-0 ${formData.accessLevel === 'ANYONE' ? 'border-primary-600' : 'border-gray-300'}`}>
+                                                        {formData.accessLevel === 'ANYONE' && <div className="w-2 sm:w-2.5 h-2 sm:h-2.5 rounded-full bg-primary-600" />}
                                                     </div>
-                                                    <div className="ml-3">
-                                                        <div className="font-semibold text-gray-900">Public</div>
-                                                        <div className="text-xs text-gray-500 mt-1 font-normal">Anyone with the link can respond</div>
+                                                    <div className="ml-3 min-w-0">
+                                                        <div className="font-semibold text-gray-900 text-sm sm:text-base">Public</div>
+                                                        <div className="text-[10px] sm:text-xs text-gray-500 mt-1 font-normal leading-tight">Anyone with the link can respond</div>
                                                     </div>
                                                 </div>
 
                                                 <div
-                                                    onClick={() => updateField('accessLevel', 'INVITED')}
-                                                    className={`cursor-pointer relative flex items-start p-4 rounded-xl border-2 transition-all ${formData.accessLevel === 'INVITED'
+                                                    onClick={() => {
+                                                        updateField('accessLevel', 'INVITED')
+                                                        updateField('accessProtectionType', 'GOOGLE')
+                                                        updateField('isPasswordProtected', false)
+                                                    }}
+                                                    className={`cursor-pointer relative flex items-start p-3 sm:p-4 rounded-xl border-2 transition-all ${formData.accessLevel === 'INVITED'
                                                         ? 'border-primary-600 bg-primary-50/30'
                                                         : 'border-gray-100 hover:border-gray-200 hover:bg-gray-50'
                                                         }`}
                                                 >
-                                                    <div className={`mt-0.5 w-5 h-5 rounded-full border flex items-center justify-center flex-shrink-0 ${formData.accessLevel === 'INVITED' ? 'border-primary-600' : 'border-gray-300'}`}>
-                                                        {formData.accessLevel === 'INVITED' && <div className="w-2.5 h-2.5 rounded-full bg-primary-600" />}
+                                                    <div className={`mt-0.5 w-4 h-4 sm:w-5 sm:h-5 rounded-full border flex items-center justify-center flex-shrink-0 ${formData.accessLevel === 'INVITED' ? 'border-primary-600' : 'border-gray-300'}`}>
+                                                        {formData.accessLevel === 'INVITED' && <div className="w-2 sm:w-2.5 h-2 sm:h-2.5 rounded-full bg-primary-600" />}
                                                     </div>
-                                                    <div className="ml-3">
-                                                        <div className="font-semibold text-gray-900">Restricted</div>
-                                                        <div className="text-xs text-gray-500 mt-1 font-normal">Only invited people can respond</div>
+                                                    <div className="ml-3 min-w-0">
+                                                        <div className="font-semibold text-gray-900 text-sm sm:text-base">Restricted</div>
+                                                        <div className="text-[10px] sm:text-xs text-gray-500 mt-1 font-normal leading-tight">Only invited people can respond</div>
                                                     </div>
                                                 </div>
                                             </div>
@@ -727,10 +784,10 @@ function EditorContent() {
                                                         <div className="relative flex-1">
                                                             <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                                                             <Input
-                                                                placeholder="Enter email addresses (comma separated)"
+                                                                placeholder="Enter email addresses"
                                                                 value={formData.allowedEmails}
                                                                 onChange={(e) => updateField('allowedEmails', e.target.value)}
-                                                                className="pl-9"
+                                                                className="pl-9 h-10 sm:h-11"
                                                             />
                                                         </div>
                                                     </div>
@@ -740,38 +797,27 @@ function EditorContent() {
                                     </div>
 
                                     {/* Footer Actions */}
-                                    <div className="p-6 bg-gray-50 border-t border-gray-100 flex justify-end gap-3">
+                                    <div className="p-4 sm:p-6 bg-gray-50 border-t border-gray-100 flex justify-end gap-3">
                                         <Button
                                             variant="outline"
                                             size="lg"
                                             onClick={() => setIsPublishOpen(false)}
-                                            className="h-12 px-6"
+                                            className="h-10 sm:h-12 px-4 sm:px-6 flex-1 sm:flex-none text-sm"
                                         >
                                             Close
                                         </Button>
                                         <Button
                                             size="lg"
-                                            className="h-12 px-8 bg-primary-600 hover:bg-primary-700 text-white shadow-lg shadow-primary-200 transition-all hover:scale-[1.02]"
+                                            className="h-10 sm:h-12 px-6 sm:px-8 bg-primary-600 hover:bg-primary-700 text-white shadow-lg shadow-primary-200 transition-all hover:scale-[1.02] flex-1 sm:flex-none text-sm"
                                             onClick={() => handleSave(true)}
                                             disabled={loading || !session}
                                         >
                                             {loading ? (
-                                                <>
-                                                    <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                                                    Publishing...
-                                                </>
+                                                <><Loader2 className="w-4 h-4 sm:w-5 sm:h-5 mr-2 animate-spin" /> Publishing...</>
                                             ) : (
-                                                <>
-                                                    Publish Changes
-                                                    <ArrowLeft className="w-5 h-5 ml-2 rotate-180" />
-                                                </>
+                                                <><span className="hidden sm:inline">Publish Changes</span><span className="sm:hidden">Publish</span><ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5 ml-2 rotate-180" /></>
                                             )}
                                         </Button>
-                                        {!session && (
-                                            <p className="text-xs text-red-500 mt-2 absolute bottom-2 right-6">
-                                                Connect Google Drive to publish.
-                                            </p>
-                                        )}
                                     </div>
                                 </DialogContent>
                             </Dialog>
@@ -781,12 +827,53 @@ function EditorContent() {
             </div>
 
             {/* Main Content Area */}
-            <div className="mx-auto px-6 py-6 max-w-[1600px]">
-                {/* Left-Right Layout: Steps on Left, Content on Right */}
-                <div className="flex gap-6">
-                    {/* Left Sidebar - Step Navigation */}
-                    <div className="w-72 flex-shrink-0">
-                        <nav className="bg-white rounded-xl p-4 shadow-sm border border-gray-200 space-y-2 sticky top-24" aria-label="Steps">
+            <div className="mx-auto px-4 sm:px-6 py-4 sm:py-6 max-w-[1600px]">
+                {/* Responsive Layout: Steps on top for mobile, left for desktop */}
+                <div className="flex flex-col lg:flex-row gap-6">
+                    {/* Step Navigation */}
+                    <div className="w-full lg:w-72 flex-shrink-0">
+                        {/* Mobile Stepper (Horizontal Scroll) */}
+                        <div className="lg:hidden mb-2 overflow-x-auto pb-2 -mx-1 px-1 scrollbar-hide">
+                            <div className="flex gap-2 min-w-max">
+                                {[
+                                    { name: 'Details', step: 0 },
+                                    { name: 'Files', step: 1 },
+                                    { name: 'Organization', step: 2 },
+                                    { name: 'Access', step: 3 },
+                                    { name: 'Design', step: 4 }
+                                ].map((tab) => {
+                                    const isActive = currentStep === tab.step;
+                                    const isCompleted = currentStep > tab.step;
+
+                                    return (
+                                        <button
+                                            key={tab.name}
+                                            onClick={() => setCurrentStep(tab.step)}
+                                            className={`
+                                                flex items-center gap-2 py-2 px-4 rounded-full
+                                                font-medium text-xs transition-all duration-200 whitespace-nowrap border
+                                                ${isActive
+                                                    ? 'bg-primary-600 text-white border-primary-600 shadow-md shadow-primary-200'
+                                                    : isCompleted
+                                                        ? 'bg-green-50 text-green-700 border-green-200'
+                                                        : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50'
+                                                }
+                                            `}
+                                        >
+                                            <span className={`flex items-center justify-center w-5 h-5 rounded-full text-[10px] ${
+                                                isActive ? 'bg-white text-primary-600' : isCompleted ? 'bg-green-600 text-white' : 'bg-gray-100 text-gray-500'
+                                            }`}>
+                                                {isCompleted ? <Check className="w-3 h-3" /> : tab.step + 1}
+                                            </span>
+                                            {tab.name}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </div>
+
+                        {/* Desktop Sidebar Nav */}
+                        <nav className="hidden lg:block bg-white rounded-xl p-4 shadow-sm border border-gray-200 space-y-2 sticky top-24" aria-label="Steps">
                             {[
                                 { name: 'Form Details', step: 0 },
                                 { name: 'Files to Collect', step: 1 },
@@ -812,7 +899,6 @@ function EditorContent() {
                                             }
                                                 `}
                                     >
-                                        {/* Step number/checkmark */}
                                         <span
                                             className={`
                                                         flex items-center justify-center w-7 h-7 rounded-full text-xs font-semibold flex-shrink-0
@@ -831,104 +917,86 @@ function EditorContent() {
                                                 tab.step + 1
                                             )}
                                         </span>
-
-                                        {/* Step label */}
                                         <span className="flex-1">{tab.name}</span>
                                     </button>
                                 );
                             })}
-
-                            {/* Progress indicator */}
-                            {/* <div className="pt-4 mt-4 border-t border-gray-200">
-                                        <div className="text-xs text-gray-500 mb-2">Step {currentStep + 1} of 5</div>
-                                        <div className="w-full bg-gray-200 rounded-full h-2">
-                                            <div 
-                                                className="bg-primary-600 h-2 rounded-full transition-all duration-300"
-                                                style={{ width: `${((currentStep + 1) / 5) * 100}%` }}
-                                            />
-                                        </div>
-                                    </div> */}
                         </nav>
                     </div>
 
-                    {/* Right Side - Content Area */}
-                    <div className="flex-1 min-w-0 space-y-6 pb-24">
-                        {/* Step 0: General Information */}
-                        {currentStep === 0 && (
-                            <GeneralStep
-                                formData={formData}
-                                updateField={updateField}
-                                addCustomQuestion={addCustomQuestion}
-                                removeCustomQuestion={removeCustomQuestion}
-                                updateCustomQuestionItem={updateCustomQuestionItem}
-                            />
-                        )}
+                    {/* Content Area */}
+                    <div className="flex-1 min-w-0 space-y-6 pb-24 sm:pb-32">
+                        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-4 sm:p-8">
+                            {/* Step Content */}
+                            {currentStep === 0 && (
+                                <GeneralStep
+                                    formData={formData}
+                                    updateField={updateField}
+                                    addCustomQuestion={addCustomQuestion}
+                                    removeCustomQuestion={removeCustomQuestion}
+                                    updateCustomQuestionItem={updateCustomQuestionItem}
+                                />
+                            )}
 
-                        {/* Step 1: Upload Settings */}
-                        {currentStep === 1 && (
-                            <UploadsStep
-                                formData={formData}
-                                updateField={updateField}
-                                addUploadField={addUploadField}
-                                removeUploadField={removeUploadField}
-                                updateUploadFieldItem={updateUploadFieldItem}
-                            />
-                        )}
+                            {currentStep === 1 && (
+                                <UploadsStep
+                                    formData={formData}
+                                    updateField={updateField}
+                                    addUploadField={addUploadField}
+                                    removeUploadField={removeUploadField}
+                                    updateUploadFieldItem={updateUploadFieldItem}
+                                />
+                            )}
 
-                        {/* Step 2: Organization */}
-                        {currentStep === 2 && (
-                            <OrganizationStep
-                                formData={formData}
-                                updateField={updateField}
-                            />
-                        )}
+                            {currentStep === 2 && (
+                                <OrganizationStep
+                                    formData={formData}
+                                    updateField={updateField}
+                                />
+                            )}
 
-                        {/* Step 3: Availability & Access */}
-                        {currentStep === 3 && (
-                            <TabTransition>
-                                <AccessTab formData={formData} updateField={updateField} />
-                            </TabTransition>
-                        )}
+                            {currentStep === 3 && (
+                                <TabTransition>
+                                    <AccessTab formData={formData} updateField={updateField} addCustomQuestion={addCustomQuestion} />
+                                </TabTransition>
+                            )}
 
-                        {/* Step 4: Design */}
-                        {currentStep === 4 && (
-                            <DesignStep
-                                formData={formData}
-                                updateField={updateField}
-                                handleLogoUpload={handleLogoUpload}
-                                handleCoverUpload={handleCoverUpload}
-                                removeLogo={removeLogo}
-                                logoUploading={logoUploading}
-                                coverUploading={coverUploading}
-                                isDraggingLogo={isDraggingLogo}
-                                isDraggingCover={isDraggingCover}
-                            />
-                        )}
+                            {currentStep === 4 && (
+                                <DesignStep
+                                    formData={formData}
+                                    updateField={updateField}
+                                    handleLogoUpload={handleLogoUpload}
+                                    handleCoverUpload={handleCoverUpload}
+                                    removeLogo={removeLogo}
+                                    logoUploading={logoUploading}
+                                    coverUploading={coverUploading}
+                                    isDraggingLogo={isDraggingLogo}
+                                    isDraggingCover={isDraggingCover}
+                                />
+                            )}
+                        </div>
 
                         {/* Bottom Navigation - Fixed at bottom */}
-                        <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg z-50">
-                            <div className="mx-auto px-6 py-4 max-w-[1600px]">
-                                <div className="flex justify-between items-center">
-                                    <div className="text-sm text-gray-500 font-medium">
+                        <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-[0_-4px_10px_rgba(0,0,0,0.05)] z-50">
+                            <div className="mx-auto px-4 sm:px-6 py-3 sm:py-4 max-w-[1600px]">
+                                <div className="flex justify-between items-center gap-4">
+                                    <div className="hidden sm:block text-sm text-gray-500 font-medium">
                                         Step {currentStep + 1} of 5
                                     </div>
-                                    <div className="flex gap-3">
-                                        {currentStep === 0 ? (
-                                            <div className="h-11 px-6 rounded-xl border-2 border-transparent" />
-                                        ) : (
-                                            <Button
-                                                variant="outline"
-                                                onClick={() => setCurrentStep(prev => prev - 1)}
-                                                className="h-11 px-6 rounded-xl border-2 border-slate-200 text-slate-600 font-medium hover:border-primary-200 hover:bg-primary-50 hover:text-primary-600 transition-all"
-                                            >
-                                                <ArrowLeft className="w-4 h-4 mr-2" />
-                                                Back
-                                            </Button>
-                                        )}
+                                    <div className="flex-1 sm:flex-none flex justify-between sm:justify-end gap-3">
+                                        <Button
+                                            variant="outline"
+                                            onClick={() => setCurrentStep(prev => prev - 1)}
+                                            disabled={currentStep === 0}
+                                            className={`h-10 sm:h-11 px-4 sm:px-6 rounded-xl border-2 border-slate-200 text-slate-600 font-medium transition-all ${currentStep === 0 ? 'opacity-0 pointer-events-none' : 'hover:border-primary-200 hover:bg-primary-50 hover:text-primary-600'}`}
+                                        >
+                                            <ArrowLeft className="w-4 h-4 mr-2" />
+                                            Back
+                                        </Button>
 
                                         {currentStep < 4 ? (
                                             <Button
-                                                className="h-11 px-8 rounded-xl bg-gradient-to-r from-primary-600 to-primary-700 text-white font-semibold shadow-lg shadow-primary-500/20 hover:shadow-xl hover:shadow-primary-500/30 hover:scale-[1.02] transition-all"
+                                                className="h-10 sm:h-11 px-6 sm:px-8 rounded-xl bg-gradient-to-r from-primary-600 to-primary-700 text-white font-semibold shadow-lg shadow-primary-500/20 hover:shadow-xl hover:shadow-primary-500/30 hover:scale-[1.02] transition-all flex-1 sm:flex-none"
                                                 onClick={() => setCurrentStep(prev => prev + 1)}
                                             >
                                                 Next
@@ -936,10 +1004,22 @@ function EditorContent() {
                                             </Button>
                                         ) : (
                                             <Button
-                                                className="h-11 px-8 rounded-xl bg-gradient-to-r from-primary-600 to-primary-700 text-white font-semibold shadow-lg shadow-primary-500/20 hover:shadow-xl hover:shadow-primary-500/30 hover:scale-[1.02] transition-all"
-                                                onClick={() => setIsPublishOpen(true)}
+                                                className="h-10 sm:h-11 px-6 sm:px-8 rounded-xl bg-gradient-to-r from-primary-600 to-primary-700 text-white font-semibold shadow-lg shadow-primary-500/20 hover:shadow-xl hover:shadow-primary-500/30 hover:scale-[1.02] transition-all flex-1 sm:flex-none"
+                                                onClick={async () => {
+                                                    if (!formId || formId === 'new') {
+                                                        const newId = await handleSave(false);
+                                                        if (newId) setIsPublishOpen(true);
+                                                    } else {
+                                                        setIsPublishOpen(true);
+                                                    }
+                                                }}
+                                                disabled={loading}
                                             >
-                                                <Globe className="w-4 h-4 mr-2" />
+                                                {loading ? (
+                                                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                                ) : (
+                                                    <Send className="w-4 h-4 mr-2" />
+                                                )}
                                                 Publish
                                             </Button>
                                         )}

@@ -38,34 +38,42 @@ export default async function AdminLayout({
     return (
         <div className="min-h-screen bg-gray-50 flex flex-col justify-between">
             {/* Top Navigation - Floating Island Design */}
-            <div className="px-4 pt-4 z-20">
-                <header className="bg-white/90 backdrop-blur-md border border-gray-200/50 rounded-2xl shadow-lg mx-auto max-w-7xl">
-                    <div className="px-6 h-16 flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                            <div className="w-9 h-9 rounded-xl flex items-center justify-center shadow-md" style={{ background: 'linear-gradient(to bottom right, var(--primary-600), var(--primary-700))', boxShadow: '0 4px 6px -1px color-mix(in srgb, var(--primary-200) 40%, transparent)' }}>
-                                <span className="text-white font-bold text-lg">F</span>
+            <div className="px-2 sm:px-4 pt-2 sm:pt-4 z-20">
+                <header className="bg-white/90 backdrop-blur-md border border-gray-200/50 rounded-xl sm:rounded-2xl shadow-lg mx-auto max-w-7xl">
+                    <div className="px-3 sm:px-6 h-14 sm:h-16 flex items-center justify-between gap-2 sm:gap-4">
+                        {/* Logo + Brand */}
+                        <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-shrink-0">
+                            <div className="w-7 h-7 sm:w-9 sm:h-9 rounded-lg sm:rounded-xl flex items-center justify-center shadow-md flex-shrink-0" style={{ background: 'linear-gradient(to bottom right, var(--primary-600), var(--primary-700))', boxShadow: '0 4px 6px -1px color-mix(in srgb, var(--primary-200) 40%, transparent)' }}>
+                                <span className="text-white font-bold text-sm sm:text-lg">F</span>
                             </div>
-                            <span className="font-bold text-lg text-gray-900 tracking-tight">File Uploader Pro</span>
+                            <span className="font-bold text-sm sm:text-lg text-gray-900 tracking-tight truncate">File Uploader Pro</span>
                         </div>
 
-                        <nav className="flex items-center gap-8">
-                            <Link href="/admin/dashboard" className="text-sm font-medium text-gray-600 hover:text-primary-600 transition-colors">
+                        {/* Navigation */}
+                        <nav className="flex items-center gap-2 sm:gap-4 md:gap-8 flex-shrink-0">
+                            {/* Desktop Navigation Links */}
+                            <Link href="/admin/dashboard" className="hidden sm:inline-block text-xs sm:text-sm font-medium text-gray-600 hover:text-primary-600 transition-colors whitespace-nowrap">
                                 Dashboard
                             </Link>
-                            <Link href="/contact" className="text-sm font-medium text-gray-600 hover:text-primary-600 transition-colors">
+                            <Link href="/contact" className="hidden md:inline-block text-xs sm:text-sm font-medium text-gray-600 hover:text-primary-600 transition-colors whitespace-nowrap">
                                 Contact
                             </Link>
-                            <div className="h-4 w-px bg-gray-200"></div>
+                            
+                            {/* Divider - Hidden on mobile */}
+                            <div className="hidden md:block h-4 w-px bg-gray-200"></div>
+                            
+                            {/* User Info & Actions */}
                             {session ? (
-                                <div className="flex items-center gap-4">
-                                    <span className="text-sm font-medium text-gray-900">
+                                <div className="flex items-center gap-2 sm:gap-3 md:gap-4">
+                                    {/* User Name - Hidden on small screens */}
+                                    <span className="hidden lg:inline-block text-xs sm:text-sm font-medium text-gray-900 truncate max-w-[120px] sm:max-w-none">
                                         {session.user?.name}
                                     </span>
                                     <SignOutButton />
                                 </div>
                             ) : (
                                 <Link href="/admin/login">
-                                    <Button variant="default" className="bg-primary-600 hover:bg-primary-700 text-white rounded-full px-6 shadow-md hover:shadow-lg transition-all">
+                                    <Button variant="default" className="bg-primary-600 hover:bg-primary-700 text-white rounded-full px-3 sm:px-6 text-xs sm:text-sm shadow-md hover:shadow-lg transition-all whitespace-nowrap">
                                         Sign In
                                     </Button>
                                 </Link>
@@ -76,7 +84,7 @@ export default async function AdminLayout({
             </div>
 
             {/* Main Content */}
-            <main className="flex-1 w-full container mx-auto px-4 py-8 min-h-screen">
+            <main className="flex-1 w-full container mx-auto px-2 sm:px-4 py-4 sm:py-8 min-h-screen">
                 {children}
             </main>
 

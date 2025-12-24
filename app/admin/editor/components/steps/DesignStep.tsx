@@ -68,31 +68,31 @@ export function DesignStep({
                             <Label className="text-sm font-medium text-slate-900">Branding Assets</Label>
                             <div className="space-y-5">
                                 {/* Logo Row */}
-                                <div className="flex items-center justify-between p-4 rounded-xl bg-slate-50 border border-slate-100">
+                                <div className="flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-xl bg-slate-50 border border-slate-100 gap-4">
                                     <div>
                                         <Label className="text-sm font-medium text-slate-900">Logo</Label>
                                         <p className="text-xs text-slate-500 mt-1">Upload your company logo (PNG, JPG, SVG)</p>
                                     </div>
-                                    <div>
+                                    <div className="self-end sm:self-auto">
                                         {formData.logoUrl ? (
                                             <div className="flex items-center gap-4">
-                                                <div className="h-14 w-14 rounded-xl border border-slate-200 bg-white flex items-center justify-center p-2 shadow-sm">
+                                                <div className="h-12 w-12 sm:h-14 sm:w-14 rounded-xl border border-slate-200 bg-white flex items-center justify-center p-2 shadow-sm">
                                                     <img src={formData.logoUrl} alt="Logo" className="max-h-full max-w-full object-contain" />
                                                 </div>
                                                 <Button
                                                     variant="ghost"
                                                     size="sm"
                                                     onClick={removeLogo}
-                                                    className="text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg"
+                                                    className="text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg text-xs"
                                                 >
                                                     Remove
                                                 </Button>
                                             </div>
                                         ) : (
                                             <label className="cursor-pointer group">
-                                                <div className={`flex items-center gap-2 px-5 py-2.5 rounded-xl border-2 transition-all ${isDraggingLogo ? 'border-primary-500 bg-primary-50 text-primary-600' : 'border-slate-200 bg-white hover:border-primary-200 hover:bg-slate-50'}`}>
+                                                <div className={`flex items-center gap-2 px-4 py-2 sm:px-5 sm:py-2.5 rounded-xl border-2 transition-all ${isDraggingLogo ? 'border-primary-500 bg-primary-50 text-primary-600' : 'border-slate-200 bg-white hover:border-primary-200 hover:bg-slate-50'}`}>
                                                     <Upload className="w-4 h-4 text-slate-400 group-hover:text-primary-500 transition-colors" />
-                                                    <span className="text-sm font-medium text-slate-600 group-hover:text-slate-900">Upload Logo</span>
+                                                    <span className="text-xs sm:text-sm font-medium text-slate-600 group-hover:text-slate-900">Upload Logo</span>
                                                 </div>
                                                 <input
                                                     type="file"
@@ -107,31 +107,31 @@ export function DesignStep({
                                 </div>
 
                                 {/* Background Cover Row */}
-                                <div className="flex items-center justify-between p-4 rounded-xl bg-slate-50 border border-slate-100">
+                                <div className="flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-xl bg-slate-50 border border-slate-100 gap-4">
                                     <div>
                                         <Label className="text-sm font-medium text-slate-900">Background Cover</Label>
                                         <p className="text-xs text-slate-500 mt-1">Add a cover image (1920x1080 recommended)</p>
                                     </div>
-                                    <div>
+                                    <div className="self-end sm:self-auto">
                                         {formData.coverImageUrl ? (
                                             <div className="flex items-center gap-4">
-                                                <div className="h-14 w-24 rounded-xl border border-slate-200 bg-white overflow-hidden shadow-sm">
+                                                <div className="h-12 w-20 sm:h-14 sm:w-24 rounded-xl border border-slate-200 bg-white overflow-hidden shadow-sm">
                                                     <img src={formData.coverImageUrl} alt="Cover" className="h-full w-full object-cover" />
                                                 </div>
                                                 <Button
                                                     variant="ghost"
                                                     size="sm"
                                                     onClick={() => updateField('coverImageUrl', '')}
-                                                    className="text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg"
+                                                    className="text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg text-xs"
                                                 >
                                                     Remove
                                                 </Button>
                                             </div>
                                         ) : (
                                             <label className="cursor-pointer group">
-                                                <div className={`flex items-center gap-2 px-5 py-2.5 rounded-xl border-2 transition-all ${isDraggingCover ? 'border-primary-500 bg-primary-50 text-primary-600' : 'border-slate-200 bg-white hover:border-primary-200 hover:bg-slate-50'}`}>
+                                                <div className={`flex items-center gap-2 px-4 py-2 sm:px-5 sm:py-2.5 rounded-xl border-2 transition-all ${isDraggingCover ? 'border-primary-500 bg-primary-50 text-primary-600' : 'border-slate-200 bg-white hover:border-primary-200 hover:bg-slate-50'}`}>
                                                     <Upload className="w-4 h-4 text-slate-400 group-hover:text-primary-500 transition-colors" />
-                                                    <span className="text-sm font-medium text-slate-600 group-hover:text-slate-900">Upload Cover</span>
+                                                    <span className="text-xs sm:text-sm font-medium text-slate-600 group-hover:text-slate-900">Upload Cover</span>
                                                 </div>
                                                 <input
                                                     type="file"
@@ -151,7 +151,7 @@ export function DesignStep({
 
                         {/* Button Style & Card Style */}
                         <div className="space-y-6">
-                            <div className="grid grid-cols-2 gap-8">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-8">
                                 <div className="space-y-3">
                                     <Label className="text-sm font-medium text-slate-900">Primary Color</Label>
                                     <div className="flex items-center gap-3">
@@ -160,14 +160,14 @@ export function DesignStep({
                                                 type="color"
                                                 value={formData.primaryColor || "#000000"}
                                                 onChange={(e) => updateField('primaryColor', e.target.value)}
-                                                className="h-12 w-12 p-1 rounded-xl border-2 border-slate-200 cursor-pointer"
+                                                className="h-11 w-11 sm:h-12 sm:w-12 p-1 rounded-xl border-2 border-slate-200 cursor-pointer"
                                             />
                                         </div>
                                         <Input
                                             type="text"
                                             value={formData.primaryColor || "#000000"}
                                             onChange={(e) => updateField('primaryColor', e.target.value)}
-                                            className="w-32 px-4 py-2.5 rounded-xl border border-slate-200 bg-white font-mono text-sm uppercase focus:ring-2 focus:ring-primary-500"
+                                            className="w-full sm:w-32 px-4 py-2.5 rounded-xl border border-slate-200 bg-white font-mono text-sm uppercase focus:ring-2 focus:ring-primary-500"
                                         />
                                     </div>
                                 </div>
@@ -180,14 +180,14 @@ export function DesignStep({
                                                 type="color"
                                                 value={formData.backgroundColor || "#ffffff"}
                                                 onChange={(e) => updateField('backgroundColor', e.target.value)}
-                                                className="h-12 w-12 p-1 rounded-xl border-2 border-slate-200 cursor-pointer"
+                                                className="h-11 w-11 sm:h-12 sm:w-12 p-1 rounded-xl border-2 border-slate-200 cursor-pointer"
                                             />
                                         </div>
                                         <Input
                                             type="text"
                                             value={formData.backgroundColor || "#ffffff"}
                                             onChange={(e) => updateField('backgroundColor', e.target.value)}
-                                            className="w-32 px-4 py-2.5 rounded-xl border border-slate-200 bg-white font-mono text-sm uppercase focus:ring-2 focus:ring-primary-500"
+                                            className="w-full sm:w-32 px-4 py-2.5 rounded-xl border border-slate-200 bg-white font-mono text-sm uppercase focus:ring-2 focus:ring-primary-500"
                                         />
                                     </div>
                                 </div>

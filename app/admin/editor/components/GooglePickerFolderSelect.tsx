@@ -147,7 +147,7 @@ export function GooglePickerFolderSelect({ formData, updateField }: GooglePicker
 
             // Small delay to ensure scroll completes before showing picker
             setTimeout(() => {
-                picker.setVisible(true);
+            picker.setVisible(true);
             }, 100);
         } catch (error: any) {
             console.error('Error opening picker:', error);
@@ -241,7 +241,7 @@ export function GooglePickerFolderSelect({ formData, updateField }: GooglePicker
                             <TooltipTrigger
                                 onMouseEnter={() => setShowTooltip(true)}
                                 onMouseLeave={() => setShowTooltip(false)}
-                                className="text-muted-foreground hover:text-foreground transition-colors mt-1.5"
+                                className="text-primary-600 hover:text-primary-700 transition-colors mt-1.5 cursor-help"
                             >
                                 <Info className="w-4 h-4" />
                             </TooltipTrigger>
@@ -312,17 +312,17 @@ export function GooglePickerFolderSelect({ formData, updateField }: GooglePicker
                                 }}
                                 className="relative inline-block"
                             >
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={openPicker}
-                                    disabled={isLoading}
-                                    className="gap-2"
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={openPicker}
+                            disabled={isLoading}
+                            className="gap-2"
                                     style={{ borderColor: 'var(--primary-600)', color: 'var(--primary-600)' }}
-                                >
+                        >
                                     {/* <RefreshCw className="w-4 h-4" /> */}
-                                    Change
-                                </Button>
+                            Change
+                        </Button>
                                 {showChangeTooltip && (
                                     <TooltipContent className="w-auto whitespace-nowrap">
                                         <p>Change selected folder</p>
@@ -352,15 +352,15 @@ export function GooglePickerFolderSelect({ formData, updateField }: GooglePicker
                                 }}
                                 className="relative inline-block"
                             >
-                                <Button
+                        <Button
                                     variant="outline"
-                                    size="sm"
+                            size="sm"
                                     onClick={setDefaultFolder}
                                     className="gap-2"
                                     style={{ borderColor: '#64748b', color: '#64748b' }}
-                                >
+                        >
                                     Set Default
-                                </Button>
+                        </Button>
                                 {showSetDefaultTooltip && (
                                     <TooltipContent className="w-auto whitespace-nowrap">
                                         <p>Reset to default folder</p>

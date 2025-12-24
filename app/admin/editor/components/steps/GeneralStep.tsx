@@ -118,8 +118,8 @@ function LivePreviewSection({ q }: { q: CustomQuestion }) {
                                             <span className="text-sm text-gray-600 font-normal">Other :</span>
                                             <div className="border-b border-dashed border-gray-300 flex-1 mt-2" />
                                         </div>
-                                    </div>
-                                )}
+                            </div>
+                        )}
                             </div>
                         )}
                     </div>
@@ -188,7 +188,7 @@ export function GeneralStep({ formData, updateField, addCustomQuestion, removeCu
 
                 <div className="space-y-6">
                     {/* Title and Description side by side */}
-                    <div className="grid grid-cols-2 gap-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div className="space-y-3">
                             <Label htmlFor="title" className="text-sm font-medium text-slate-700">Form Title</Label>
                             <Input
@@ -196,7 +196,7 @@ export function GeneralStep({ formData, updateField, addCustomQuestion, removeCu
                                 id="title"
                                 value={formData.title}
                                 onChange={(e) => updateField('title', e.target.value)}
-                                className="w-full mt-2 px-4 py-3 rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all duration-200"
+                                className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all duration-200"
                                 placeholder="Untitled Form"
                             />
                         </div>
@@ -204,7 +204,7 @@ export function GeneralStep({ formData, updateField, addCustomQuestion, removeCu
                             <Label htmlFor="description" className="text-sm font-medium text-slate-700">Description</Label>
                             <Textarea
                                 id="description"
-                                className="min-h-[100px] mt-2 resize-y w-full px-4 py-3 rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all duration-200"
+                                className="min-h-[100px] md:min-h-[120px] resize-y w-full px-4 py-3 rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all duration-200"
                                 placeholder="e.g., Instructions or details for people uploading files."
                                 value={formData.description || ''}
                                 onChange={(e) => updateField('description', e.target.value)}
@@ -218,9 +218,9 @@ export function GeneralStep({ formData, updateField, addCustomQuestion, removeCu
                 <div className="border-t border-slate-200 pt-6 space-y-4">
                     <div className="flex items-center justify-between">
                         <div className="space-y-1">
-                            <h2 className="text-xl font-semibold tracking-tight text-slate-900">Form Questions</h2>
+                            <h2 className="text-xl font-semibold tracking-tight text-slate-900">Form Questions (Optional)</h2>
                             <p className="text-sm text-slate-400 leading-relaxed">
-                            Questions are optional. You can edit or delete this question, or continue without adding any questions.
+                             You can edit or delete this question, or continue without adding any content.
                             </p>
                         </div>
                     </div>
@@ -337,7 +337,7 @@ export function GeneralStep({ formData, updateField, addCustomQuestion, removeCu
                                         {/* Type Specific Configuration */}
                                         <div className="space-y-4 pt-2">
                                             <div className="flex items-center gap-2">
-                                                <Label className="text-sm font-medium text-slate-700">Configuration</Label>
+                                            <Label className="text-sm font-medium text-slate-700">Configuration</Label>
                                                 <Tooltip>
                                                     <TooltipTrigger
                                                         onMouseEnter={() => setShowTooltipForQuestion(q.id)}
@@ -507,9 +507,9 @@ export function GeneralStep({ formData, updateField, addCustomQuestion, removeCu
                                                             type="checkbox"
                                                             className="h-4 w-4 rounded border border-slate-300"
                                                             style={{ accentColor: 'var(--primary-600)' }}
-                                                            checked={q.allowOther || false}
+                                                                checked={q.allowOther || false}
                                                             onChange={(e) => updateCustomQuestionItem(q.id, 'allowOther', e.target.checked)}
-                                                        />
+                                                            />
                                                         <span className="text-sm font-normal text-slate-600">Allow "Other" option</span>
                                                     </label>
                                                 </div>
@@ -519,13 +519,13 @@ export function GeneralStep({ formData, updateField, addCustomQuestion, removeCu
                                             <div className="border-t border-slate-200 pt-4 mt-4">
                                                 <div className="flex items-center justify-end gap-4">
                                                     <div className="flex items-center space-x-3">
-                                                        <Switch
-                                                            checked={q.required}
-                                                            onCheckedChange={(c) => updateCustomQuestionItem(q.id, 'required', c)}
-                                                            id={`required-${q.id}`}
-                                                            className="data-[state=checked]:bg-primary-600"
-                                                        />
-                                                        <Label htmlFor={`required-${q.id}`} className="text-sm font-normal text-slate-600">Required field</Label>
+                                                <Switch
+                                                    checked={q.required}
+                                                    onCheckedChange={(c) => updateCustomQuestionItem(q.id, 'required', c)}
+                                                    id={`required-${q.id}`}
+                                                    className="data-[state=checked]:bg-primary-600"
+                                                />
+                                                <Label htmlFor={`required-${q.id}`} className="text-sm font-normal text-slate-600">Required field</Label>
                                                     </div>
                                                     <div className="h-6 w-px bg-slate-300"></div>
                                                     <Tooltip>

@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useSession, signIn } from "next-auth/react"
 import { useDropzone } from "react-dropzone"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -9,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { Loader2, UploadCloud, CheckCircle, Lock, RefreshCcw, AlertCircle, Trash2, Folder } from "lucide-react"
+import { Loader2, UploadCloud, CheckCircle, Lock, RefreshCcw, AlertCircle, Trash2, Folder, X } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { BsFileEarmarkPdf, BsFileEarmarkWord, BsFileEarmarkExcel, BsImage, BsFileEarmarkPlay, BsFileEarmarkMusic, BsFileEarmarkZip, BsFileEarmarkText } from "react-icons/bs"
 
@@ -130,11 +131,20 @@ interface FormConfig {
     buttonTextColor?: string
     cardStyle?: string
     borderRadius?: string
+    accessProtectionType?: "PUBLIC" | "PASSWORD" | "GOOGLE"
+    allowedDomains?: string
 }
 
 // Extended file type with metadata
 interface FileWithMetadata extends File {
     _isFromFolder?: boolean
+    _folderName?: string // Name of the folder this file belongs to (if from folder upload)
+}
+
+// Folder group for UI display
+interface FolderGroup {
+    folderName: string
+    files: FileWithMetadata[]
 }
 
 // Helper Component for Multiple File Dropzone
@@ -152,6 +162,7 @@ const FileDropzone = ({
     allowedTypesHint,
     allowMultiple = true,
     allowFolder = true,
+    onViewFolder,
 }: {
     fieldId: string
     label: string
@@ -166,11 +177,13 @@ const FileDropzone = ({
     allowedTypesHint?: string
     allowMultiple?: boolean
     allowFolder?: boolean
+    onViewFolder?: (fieldId: string, folderName: string) => void
 }) => {
     const { getRootProps, getInputProps, isDragActive, fileRejections } = useDropzone({
         onDrop: (acceptedFiles) => {
             if (acceptedFiles.length > 0) {
                 // Files from dropzone are individual files (not from folder)
+                // Always pass false for isFromFolder since dropzone is for individual files
                 onDrop(allowMultiple ? acceptedFiles : [acceptedFiles[0]], false)
             }
         },
@@ -290,133 +303,70 @@ const FileDropzone = ({
                     
                     {/* Group files by upload type */}
                     {(() => {
-                        const folderFiles: { file: FileWithMetadata; originalIndex: number }[] = []
+                        // Group folder files by folder name
+                        const folderGroups: Record<string, FolderGroup> = {}
                         const individualFiles: { file: FileWithMetadata; originalIndex: number }[] = []
                         
                         files.forEach((file, index) => {
-                            // Detect if file was uploaded from folder using multiple methods:
-                            // Method 1: Check metadata flag (set when explicitly marked)
-                            const hasMetadataFlag = (file as FileWithMetadata)._isFromFolder === true
-                            
-                            // Method 2: Check webkitRelativePath property (browser sets this for folder uploads)
-                            // Files from folder input ALWAYS have webkitRelativePath, even if it's just the filename
-                            const hasRelativePath = 'webkitRelativePath' in file && 
-                                                   (file as any).webkitRelativePath !== undefined && 
-                                                   (file as any).webkitRelativePath !== ''
-                            
-                            // A file is from folder if:
-                            // - Explicitly marked with _isFromFolder flag, OR
-                            // - Has webkitRelativePath property (indicates folder upload)
-                            const isFromFolder = hasMetadataFlag || hasRelativePath
+                            // Use _isFromFolder as single source of truth
+                            // This flag is set during file ingestion (handleFileDrop)
+                            const isFromFolder = (file as FileWithMetadata)._isFromFolder === true
                             
                             if (isFromFolder) {
-                                folderFiles.push({ file, originalIndex: index })
+                                const folderName = file._folderName || 'Unknown Folder'
+                                if (!folderGroups[folderName]) {
+                                    folderGroups[folderName] = {
+                                        folderName,
+                                        files: []
+                                    }
+                                }
+                                folderGroups[folderName].files.push(file)
                             } else {
                                 individualFiles.push({ file, originalIndex: index })
                             }
                         })
+                        
+                        const folders = Object.values(folderGroups)
 
                         return (
                             <div className="space-y-4 max-h-64 overflow-y-auto">
-                                {/* Uploaded as Folder Section */}
-                                {folderFiles.length > 0 && (
+                                {/* Uploaded as Folder Section - Show ONE item per folder */}
+                                {folders.length > 0 && (
                                     <div className="space-y-2">
                                         <div className="flex items-center gap-2 pb-2 border-b border-gray-200">
                                             <Folder className="w-4 h-4 text-blue-600" />
                                             <h3 className="text-sm font-semibold text-gray-800">
-                                                Uploaded as folder ({folderFiles.length})
+                                                Folders ({folders.length})
                                             </h3>
                                         </div>
                                         <div className="space-y-2">
-                                            {folderFiles.map(({ file, originalIndex }) => {
-                                                const progress = uploadProgress?.[originalIndex]
-                                                const isUploading = uploading && progress !== undefined && progress < 100
-                                                const isComplete = progress === 100
-                                                const hasError = !!errors?.[originalIndex]
-
+                                            {/* Show ONE item per folder */}
+                                            {folders.map((folder) => {
+                                                const totalSize = folder.files.reduce((acc, f) => acc + f.size, 0)
+                                                
                                                 return (
                                                     <div
-                                                        key={`${file.name}-${originalIndex}`}
-                                                        className={cn(
-                                                            "flex items-center gap-3 p-3 rounded-lg border transition-colors",
-                                                            hasError
-                                                                ? "bg-red-50 border-red-200"
-                                                                : isComplete
-                                                                    ? "bg-green-50 border-green-200"
-                                                                    : isUploading
-                                                                        ? "bg-blue-50 border-blue-200"
-                                                                        : "bg-gray-50 border-gray-200"
-                                                        )}
+                                                        key={folder.folderName}
+                                                        className="flex items-center gap-3 p-3 rounded-lg border bg-blue-50 border-blue-200 hover:bg-blue-100 cursor-pointer transition-colors"
+                                                        onClick={() => {
+                                                            // Open folder viewer popup
+                                                            onViewFolder?.(fieldId, folder.folderName)
+                                                        }}
                                                     >
-                                                        <div className="flex-shrink-0">{getFileIcon(file)}</div>
-                                                        <div className="flex-1 min-w-0">
-                                                            <div className="flex items-center gap-2">
-                                                                <p className={cn(
-                                                                    "text-sm font-medium truncate",
-                                                                    hasError ? "text-red-800" : isComplete ? "text-green-800" : "text-gray-800"
-                                                                )}>
-                                                                    {file.name}
-                                                                </p>
-                                                                {isUploading && (
-                                                                    <Loader2 className="w-3 h-3 animate-spin text-blue-600 flex-shrink-0" />
-                                                                )}
-                                                                {isComplete && !hasError && (
-                                                                    <CheckCircle className="w-3 h-3 text-green-600 flex-shrink-0" />
-                                                                )}
-                                                            </div>
-                                                            <p className={cn(
-                                                                "text-xs mt-0.5",
-                                                                hasError ? "text-red-600" : isComplete ? "text-green-600" : "text-gray-600"
-                                                            )}>
-                                                                {formatFileSize(file.size)}
-                                                            </p>
-                                                            {(isUploading || isComplete) && progress !== undefined && (
-                                                                <div className="mt-2">
-                                                                    <div className="w-full bg-gray-200 rounded-full h-1.5">
-                                                                        <div
-                                                                            className={cn(
-                                                                                "h-1.5 rounded-full transition-all duration-300",
-                                                                                isComplete ? "bg-green-600" : "bg-blue-600"
-                                                                            )}
-                                                                            style={{ width: `${progress}%` }}
-                                                                        />
-                                                                    </div>
-                                                                    <p className={cn(
-                                                                        "text-xs mt-1",
-                                                                        isComplete ? "text-green-600" : "text-blue-600"
-                                                                    )}>
-                                                                        {progress}% {isComplete ? "uploaded" : "uploading"}
-                                                                    </p>
-                                                                </div>
-                                                            )}
-                                                            {hasError && (
-                                                                <p className="text-xs text-red-600 mt-1 flex items-center gap-1">
-                                                                    <AlertCircle className="w-3 h-3" />
-                                                                    {errors[originalIndex]}
-                                                                </p>
-                                                            )}
+                                                        <div className="flex-shrink-0">
+                                                            <Folder className="w-8 h-8 text-blue-600" />
                                                         </div>
-                                                        <Button
-                                                            variant="ghost"
-                                                            size="sm"
-                                                            className={cn(
-                                                                "h-8 w-8 p-0 flex-shrink-0",
-                                                                hasError
-                                                                    ? "text-red-600 hover:text-red-800 hover:bg-red-100"
-                                                                    : isComplete
-                                                                        ? "text-green-600 hover:text-green-800 hover:bg-green-100"
-                                                                        : "text-gray-600 hover:text-gray-800 hover:bg-gray-100"
-                                                            )}
-                                                            onClick={(e) => {
-                                                                e.stopPropagation()
-                                                                if (!isUploading) {
-                                                                    onRemove(originalIndex)
-                                                                }
-                                                            }}
-                                                            disabled={isUploading}
-                                                        >
-                                                            <Trash2 className="w-4 h-4" />
-                                                        </Button>
+                                                        <div className="flex-1 min-w-0">
+                                                            <p className="text-sm font-medium text-blue-900 truncate">
+                                                                {folder.folderName}
+                                                            </p>
+                                                            <p className="text-xs text-blue-700 mt-0.5">
+                                                                {folder.files.length} {folder.files.length === 1 ? 'file' : 'files'} • {formatFileSize(totalSize)}
+                                                            </p>
+                                                        </div>
+                                                        <div className="text-xs text-blue-600 flex-shrink-0">
+                                                            Click to view
+                                                        </div>
                                                     </div>
                                                 )
                                             })}
@@ -539,18 +489,29 @@ const FileDropzone = ({
             {files.length === 0 && errors && Object.keys(errors).length > 0 && (
                 <p className="text-xs text-red-600 mt-2 flex items-center gap-1">
                     <AlertCircle className="w-3 h-3" />
-                    {errors[0] ?? Object.values(errors)[0]}
+                    {/* Show the first error message (field-level, not index-level) */}
+                    {Object.values(errors)[0]}
                 </p>
             )}
         </div>
     )
 }
 
-export default function UploadForm({ isPreview = false, formId, initialData }: { isPreview?: boolean, formId?: string, initialData?: FormConfig }) {
+export default function UploadForm({ isPreview = false, formId, initialData, formOwnerId }: { isPreview?: boolean, formId?: string, initialData?: FormConfig, formOwnerId?: string }) {
+    const { data: session } = useSession()
     const [config, setConfig] = useState<FormConfig | null>(initialData || null)
     const [loading, setLoading] = useState(!initialData)
     const [error, setError] = useState("")
-    const [step, setStep] = useState<'auth' | 'form' | 'success'>('auth')
+    const [step, setStep] = useState<'auth' | 'google_auth' | 'form' | 'success'>(
+        initialData 
+            ? (initialData.accessProtectionType === 'GOOGLE' ? 'google_auth' : 
+               initialData.accessProtectionType === 'PASSWORD' ? 'auth' : 'form')
+            : 'auth'
+    )
+    const [isDomainBlocked, setIsDomainBlocked] = useState(false)
+    
+    // Check if current user is the form owner/admin
+    const isFormOwner = isPreview || (session?.user?.id && formOwnerId && session.user.id === formOwnerId)
 
     // Auth State
     const [password, setPassword] = useState("")
@@ -563,9 +524,44 @@ export default function UploadForm({ isPreview = false, formId, initialData }: {
     const [questionErrors, setQuestionErrors] = useState<Record<string, string>>({})
     const [uploading, setUploading] = useState(false)
     const [uploadProgress, setUploadProgress] = useState<Record<string, Record<number, number>>>({})
+    
+    // Folder viewer state
+    const [viewingFolder, setViewingFolder] = useState<{ fieldId: string; folderName: string } | null>(null)
 
     // Success State
     const [referenceId, setReferenceId] = useState("")
+
+    // Check Google Auth Restriction
+    useEffect(() => {
+        if (!config || isPreview) return
+
+        if (config.accessProtectionType === 'GOOGLE') {
+            if (!session) {
+                setStep('google_auth')
+            } else {
+                // Check domains if restricted
+                const domains = config.allowedDomains 
+                    ? config.allowedDomains.split(',').map(d => d.trim().toLowerCase()).filter(Boolean)
+                    : []
+                
+                if (domains.length > 0) {
+                    const userEmail = session.user?.email || ""
+                    const userDomain = userEmail.split('@')[1]?.toLowerCase()
+                    
+                    if (!userDomain || !domains.includes(userDomain)) {
+                        setIsDomainBlocked(true)
+                        setError("Access Denied: Your email domain is not authorized to access this form.")
+                        return
+                    }
+                }
+                setStep('form')
+            }
+        } else if (config.accessProtectionType === 'PASSWORD') {
+            setStep('auth')
+        } else {
+            setStep('form')
+        }
+    }, [config, session, isPreview])
 
     useEffect(() => {
         if (initialData) {
@@ -580,9 +576,6 @@ export default function UploadForm({ isPreview = false, formId, initialData }: {
                 }
             }
 
-            if (!initialData.isPasswordProtected) {
-                setStep('form')
-            }
             return
         }
 
@@ -599,7 +592,8 @@ export default function UploadForm({ isPreview = false, formId, initialData }: {
                 enableSubmitAnother: true,
                 isAcceptingResponses: true,
                 logoUrl: "",
-                uploadFields: []
+                uploadFields: [],
+                accessProtectionType: "PUBLIC"
             })
             setLoading(false)
             setStep('form')
@@ -644,9 +638,6 @@ export default function UploadForm({ isPreview = false, formId, initialData }: {
                     }
 
                     setConfig(parsedData)
-                    if (!data.isPasswordProtected) {
-                        setStep('form')
-                    }
                 }
             })
             .catch(err => {
@@ -677,34 +668,32 @@ export default function UploadForm({ isPreview = false, formId, initialData }: {
             const allowMultiple = fieldConfig?.allowMultiple !== false
 
             const existingFiles = allowMultiple ? (prev[fieldId] || []) : []
-            // Add new files, avoiding duplicates by name and size
-            const uniqueFiles: FileWithMetadata[] = [...existingFiles]
+            // Add new files (duplicates are now allowed)
+            const updatedFiles: FileWithMetadata[] = [...existingFiles]
             newFiles.forEach(newFile => {
-                if (!allowMultiple && uniqueFiles.length >= 1) {
+                if (!allowMultiple && updatedFiles.length >= 1) {
                     return
                 }
-                const isDuplicate = existingFiles.some(
-                    f => f.name === newFile.name && f.size === newFile.size
-                )
-                if (!isDuplicate) {
-                    // Mark file with metadata indicating if it came from a folder
-                    const fileWithMetadata = newFile as FileWithMetadata
-                    
-                    // Auto-detect folder uploads: files from folder input have webkitRelativePath property
-                    // Check if file has webkitRelativePath (indicates folder upload)
-                    // Files from folder input ALWAYS have webkitRelativePath, even if it's just the filename
-                    const hasRelativePath = 'webkitRelativePath' in newFile && (newFile as any).webkitRelativePath !== undefined && (newFile as any).webkitRelativePath !== ''
-                    
-                    // A file is from folder if:
-                    // 1. Explicitly marked via isFromFolder parameter, OR
-                    // 2. Has webkitRelativePath property (browser sets this for folder uploads)
-                    const detectedFromFolder = isFromFolder || hasRelativePath
-                    
-                    fileWithMetadata._isFromFolder = detectedFromFolder
-                    uniqueFiles.push(fileWithMetadata)
+                
+                // Mark file with metadata indicating if it came from a folder
+                const fileWithMetadata = newFile as FileWithMetadata
+                
+                // Set _isFromFolder based ONLY on the isFromFolder parameter passed from FileDropzone
+                // This is the single source of truth for folder detection
+                fileWithMetadata._isFromFolder = isFromFolder
+                
+                // If from folder, extract folder name from webkitRelativePath (first part of path)
+                if (isFromFolder && 'webkitRelativePath' in newFile) {
+                    const relativePath = (newFile as any).webkitRelativePath as string
+                    if (relativePath) {
+                        const pathParts = relativePath.split('/')
+                        fileWithMetadata._folderName = pathParts[0] || 'Unknown Folder'
+                    }
                 }
+                
+                updatedFiles.push(fileWithMetadata)
             })
-            return { ...prev, [fieldId]: uniqueFiles }
+            return { ...prev, [fieldId]: updatedFiles }
         })
         // Clear errors for this field when new files are added
         setFileErrors(prev => {
@@ -776,6 +765,10 @@ export default function UploadForm({ isPreview = false, formId, initialData }: {
         e.preventDefault()
         if (!formId || !config) return
 
+        // Generate a unique submission ID for this upload session
+        // This will be used to create a per-submission folder in Google Drive
+        const submissionId = crypto.randomUUID()
+
         // Filter to only validate fields with filled labels
         const filledQuestions = config.customQuestions?.filter(q => q.label && q.label.trim() !== '') || []
         const filledUploadFields = config.uploadFields?.filter(field => field.label && field.label.trim() !== '') || []
@@ -811,14 +804,15 @@ export default function UploadForm({ isPreview = false, formId, initialData }: {
 
         if (hasMissingFiles || hasQuestionErrors) {
             if (hasMissingFiles) {
-                // Set field-specific errors instead of a single global message
-                const fieldErrorMap: Record<string, Record<number, string>> = {}
+                // Set field-level errors (not index-based)
+                // Use a special key 'field' to indicate field-level error
+                const fieldErrorMap: Record<string, Record<string, string>> = {}
                 for (const field of missingFiles!) {
                     fieldErrorMap[field.id] = {
-                        0: `Please upload at least one file for "${field.label}".`
+                        'field': `Please upload at least one file for "${field.label}".`
                     }
                 }
-                setFileErrors(fieldErrorMap)
+                setFileErrors(fieldErrorMap as any)
             }
 
             if (hasQuestionErrors) {
@@ -860,6 +854,14 @@ export default function UploadForm({ isPreview = false, formId, initialData }: {
                         const formData = new FormData()
                         formData.append('file', file)
                         if (formId) formData.append('formId', formId)
+                        formData.append('fieldId', field.id) // Send fieldId so API can echo it back
+                        formData.append('submissionId', submissionId) // Send submission ID for per-submission folder
+                        
+                        // Send folder name if this file is from a folder upload
+                        const fileMetadata = file as FileWithMetadata
+                        if (fileMetadata._folderName) {
+                            formData.append('folderName', fileMetadata._folderName)
+                        }
 
                         // Use XMLHttpRequest to track upload progress
                         const uploadData = await new Promise<any>((resolve, reject) => {
@@ -931,13 +933,30 @@ export default function UploadForm({ isPreview = false, formId, initialData }: {
                             xhr.send(formData)
                         })
 
+                        // Extract folder metadata
+                        const fileWithMetadata = file as FileWithMetadata
+                        const isFromFolder = fileWithMetadata._isFromFolder || false
+                        const folderName = fileWithMetadata._folderName || ''
+                        
+                        // Get relative path from webkitRelativePath if available
+                        let relativePath = file.name // Default to just filename
+                        if (isFromFolder && 'webkitRelativePath' in file) {
+                            const webkitPath = (file as any).webkitRelativePath
+                            if (webkitPath && typeof webkitPath === 'string' && webkitPath.trim() !== '') {
+                                relativePath = webkitPath
+                            }
+                        }
+                        
                         uploadedFiles.push({
                             ...uploadData,
                             fieldId: field.id,
                             label: field.label,
                             fileName: file.name,
                             fileSize: file.size,
-                            fileType: file.type
+                            fileType: file.type,
+                            isFromFolder: isFromFolder,
+                            folderName: folderName,
+                            relativePath: relativePath
                         })
 
                     } catch (fileError: any) {
@@ -989,8 +1008,9 @@ export default function UploadForm({ isPreview = false, formId, initialData }: {
                     formId,
                     files: uploadedFiles,
                     answers: Object.entries(answers).map(([qId, ans]) => ({ questionId: qId, answer: ans })),
-                    submitterName: null,
-                    submitterEmail: null,
+                    submitterName: session?.user?.name || null,
+                    submitterEmail: session?.user?.email || null,
+                    authProvider: session ? "google" : null,
                     metadata: answers
                 })
             })
@@ -1098,9 +1118,9 @@ export default function UploadForm({ isPreview = false, formId, initialData }: {
     )
 
     return (
-        <div className="w-full max-w-2xl mx-auto">
+        <div className="w-full max-w-2xl mx-auto px-4 sm:px-0 py-4 sm:py-8">
             {isPreview && (
-                <div className="bg-yellow-100 text-yellow-800 px-4 py-2 rounded-md mb-4 text-center font-medium border border-yellow-200">
+                <div className="bg-yellow-100 text-yellow-800 px-4 py-2 rounded-md mb-4 text-center font-medium border border-yellow-200 text-xs sm:text-sm">
                     Preview Mode - No files will be stored
                 </div>
             )}
@@ -1108,63 +1128,195 @@ export default function UploadForm({ isPreview = false, formId, initialData }: {
             {config?.logoUrl && (
                 <div className="flex justify-center mb-6">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={config.logoUrl} alt="Form logo" className="h-16 md:h-20 object-contain" />
+                    <img src={config.logoUrl} alt="Form logo" className="h-12 sm:h-16 md:h-20 object-contain" />
                 </div>
             )}
 
             {step === 'auth' && (
-                <Card className={cardClasses}>
-                    <CardHeader className="text-center">
+                <Card className={cn(cardClasses, "border-0 sm:border")}>
+                    <CardHeader className="text-center px-4 sm:px-6">
                         <div className="mx-auto bg-primary/10 p-3 rounded-full w-fit mb-4">
-                            <Lock className="w-6 h-6" style={{ color: primaryColor }} />
+                            <Lock className="w-5 h-5 sm:w-6 sm:h-6" style={{ color: primaryColor }} />
                         </div>
-                        <CardTitle>Protected Form</CardTitle>
-                        <CardDescription>Please enter the password to continue.</CardDescription>
+                        <CardTitle className="text-xl sm:text-2xl">Protected Form</CardTitle>
+                        <CardDescription className="text-sm">Please enter the password to continue.</CardDescription>
                     </CardHeader>
                     <form onSubmit={handleAuth}>
-                        <CardContent className="space-y-4">
+                        <CardContent className="space-y-4 px-4 sm:px-6">
                             <div className="space-y-2">
-                                <Label>Password</Label>
-                                <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} className={authError ? "border-red-500" : ""} />
-                                {authError && <p className="text-sm text-red-500">{authError}</p>}
+                                <Label className="text-sm">Password</Label>
+                                <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} className={cn("h-11 sm:h-10", authError ? "border-red-500" : "")} />
+                                {authError && <p className="text-xs sm:text-sm text-red-500">{authError}</p>}
                             </div>
                         </CardContent>
-                        <CardFooter>
-                            <Button className="w-full" type="submit" style={{ backgroundColor: primaryColor, color: buttonTextColor }}>Access Form</Button>
+                        <CardFooter className="px-4 sm:px-6 pb-6">
+                            <Button className="w-full h-11" type="submit" style={{ backgroundColor: primaryColor, color: buttonTextColor }}>Access Form</Button>
                         </CardFooter>
                     </form>
                 </Card>
             )}
 
+            {step === 'google_auth' && (
+                <Card className={cn(cardClasses, "border-0 sm:border")}>
+                    <CardHeader className="text-center px-4 sm:px-6">
+                        <div className="mx-auto bg-primary/10 p-3 rounded-full w-fit mb-4">
+                            <Lock className="w-5 h-5 sm:w-6 sm:h-6" style={{ color: primaryColor }} />
+                        </div>
+                        <CardTitle className="text-xl sm:text-2xl">Sign In Required</CardTitle>
+                        <CardDescription className="text-sm">
+                            {isDomainBlocked 
+                                ? "Access Denied" 
+                                : "Please sign in with your Google account to access this form."}
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4 px-4 sm:px-6 text-center">
+                        {isDomainBlocked ? (
+                            <div className="p-4 bg-red-50 text-red-800 rounded-lg border border-red-100 text-sm">
+                                <AlertCircle className="w-5 h-5 mx-auto mb-2 text-red-600" />
+                                <p>{error}</p>
+                                <Button 
+                                    variant="outline" 
+                                    className="mt-4 w-full"
+                                    onClick={() => window.location.reload()}
+                                >
+                                    Try Another Account
+                                </Button>
+                            </div>
+                        ) : (
+                            <div className="space-y-4">
+                                <p className="text-sm text-gray-600">
+                                    This form requires a verified Google identity to prevent anonymous submissions.
+                                </p>
+                                <Button 
+                                    className="w-full h-12 flex items-center justify-center gap-3 font-semibold"
+                                    onClick={() => signIn('google')}
+                                    style={{ backgroundColor: primaryColor, color: buttonTextColor }}
+                                >
+                                    <svg className="w-5 h-5" viewBox="0 0 24 24">
+                                        <path
+                                            fill="currentColor"
+                                            d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+                                        />
+                                        <path
+                                            fill="currentColor"
+                                            d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                                        />
+                                        <path
+                                            fill="currentColor"
+                                            d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"
+                                        />
+                                        <path
+                                            fill="currentColor"
+                                            d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
+                                        />
+                                    </svg>
+                                    Sign In with Google
+                                </Button>
+                            </div>
+                        )}
+                    </CardContent>
+                </Card>
+            )}
+
             {step === 'form' && (
-                <Card className={cardClasses}>
-                    <CardHeader>
-                        <CardTitle>{config?.title || "File Upload"}</CardTitle>
-                        <CardDescription>{config?.description || "Please fill in your details and upload your file."}</CardDescription>
+                <Card className={cn(cardClasses, "border-0 sm:border")}>
+                    <CardHeader className="px-4 sm:px-6">
+                        <CardTitle className="text-xl sm:text-2xl">{config?.title || "File Upload"}</CardTitle>
+                        <CardDescription className="text-sm sm:text-base">{config?.description || "Please fill in your details and upload your file."}</CardDescription>
                     </CardHeader>
                     <form onSubmit={handleUpload}>
-                        <CardContent className="space-y-6">
+                        <CardContent className="space-y-6 px-4 sm:px-6">
                             {(() => {
                                 // Filter to only show fields with filled labels
                                 const filledQuestions = config?.customQuestions?.filter(q => q.label && q.label.trim() !== '') || []
                                 const filledUploadFields = config?.uploadFields?.filter(field => field.label && field.label.trim() !== '') || []
                                 
-                                return (filledQuestions.length === 0 && filledUploadFields.length === 0) ? (
-                                    <div className="rounded-lg border border-dashed border-primary-200 bg-gray-50 px-4 py-6 text-center space-y-2">
-                                        <p className="text-md font-medium text-gray-700">
-                                        This upload page isn't ready yet.
-                                        </p>
-                                        <p className="text-sm text-gray-500">
-                                        The person who shared this link hasn't finished setting it up.
-                                        You can contact them or check back later.
-                                        </p>
-                                    </div>
-                                ) : (
+                                // Validation: Check what's missing
+                                const missingItems: string[] = []
+                                
+                                // Check form title (allow "Untitled Form" as valid)
+                                const title = config?.title || ''
+                                if (!title || title.trim() === '') {
+                                    missingItems.push('Form title')
+                                }
+                                
+                                // Check file upload fields
+                                if (filledUploadFields.length === 0) {
+                                    missingItems.push('At least one file upload field')
+                                }
+                                
+                                // Check required custom questions configuration
+                                const customQuestions = config?.customQuestions || []
+                                const requiredQuestions = customQuestions.filter((q: CustomQuestion) => q.required === true)
+                                const invalidRequiredQuestions = requiredQuestions.filter((q: CustomQuestion) => {
+                                    if (!q.label || q.label.trim() === '') return true
+                                    if ((q.type === 'select' || q.type === 'radio' || q.type === 'checkbox')) {
+                                        if (!q.options || q.options.length === 0 || q.options.every((opt: string) => !opt || opt.trim() === '')) {
+                                            return true
+                                        }
+                                    }
+                                    return false
+                                })
+                                
+                                if (invalidRequiredQuestions.length > 0) {
+                                    missingItems.push('Required question fields configuration')
+                                }
+                                
+                                // Show error message if anything is missing
+                                if (missingItems.length > 0) {
+                                    // Admin view (preview mode or form owner) - show detailed errors
+                                    if (isFormOwner) {
+                                        return (
+                                            <div className="rounded-xl border border-dashed border-orange-300 bg-orange-50 px-4 sm:px-6 py-6 sm:py-8 space-y-4">
+                                                <div className="flex items-start gap-3">
+                                                    <AlertCircle className="w-5 h-5 text-orange-600 mt-1 flex-shrink-0" />
+                                                    <div className="flex-1 space-y-3">
+                                                        <p className="text-base sm:text-lg font-semibold text-gray-900 leading-tight">
+                                                            Form Setup Incomplete
+                                                        </p>
+                                                        <p className="text-xs sm:text-sm text-gray-700">
+                                                            Please complete the following before publishing this form:
+                                                        </p>
+                                                        <ul className="list-disc list-inside space-y-1.5 text-xs sm:text-sm text-gray-700 ml-1">
+                                                            {missingItems.map((item, index) => (
+                                                                <li key={index}>{item}</li>
+                                                            ))}
+                                                        </ul>
+                                                        <div className="pt-2 border-t border-orange-200">
+                                                            <p className="text-[10px] sm:text-xs text-gray-600 leading-relaxed">
+                                                                <strong>What to do:</strong> Go back to the form editor and fill in the missing information.
+                                                            </p>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        )
+                                    }
+                                    
+                                    // Regular uploader view - show generic message
+                                    return (
+                                        <div className="rounded-xl border border-dashed border-orange-300 bg-orange-50 px-4 sm:px-6 py-6 sm:py-8 space-y-4">
+                                            <div className="flex items-start gap-3">
+                                                <AlertCircle className="w-5 h-5 text-orange-600 mt-1 flex-shrink-0" />
+                                                <div className="flex-1 space-y-2">
+                                                    <p className="text-base sm:text-lg font-semibold text-gray-900 leading-tight">
+                                                        This page isn't ready yet
+                                                    </p>
+                                                    <p className="text-xs sm:text-sm text-gray-700 leading-relaxed">
+                                                        The form creator hasn't finished setting up this form. Please contact the person who shared this link.
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )
+                                }
+                                
+                                return (
                                     <>
                             {/* Custom Questions */}
                             {filledQuestions.map((q) => (
-                                <div key={q.id} className="space-y-2">
-                                    <Label>
+                                <div key={q.id} className="space-y-2.5">
+                                    <Label className="text-sm sm:text-base font-medium">
                                         {q.label}
                                         {q.required && <span className="text-red-500 ml-1">*</span>}
                                     </Label>
@@ -1174,7 +1326,7 @@ export default function UploadForm({ isPreview = false, formId, initialData }: {
                                             required={q.required}
                                             value={answers[q.id] || ''}
                                             onChange={(e) => handleAnswerChange(q.id, e.target.value)}
-                                                    className="mt-2"
+                                            className="h-11 sm:h-10"
                                         />
                                     )}
 
@@ -1183,13 +1335,13 @@ export default function UploadForm({ isPreview = false, formId, initialData }: {
                                             required={q.required}
                                             value={answers[q.id] || ''}
                                             onChange={(e) => handleAnswerChange(q.id, e.target.value)}
-                                                    className="mt-2"
+                                            className="min-h-[100px] text-sm sm:text-base"
                                         />
                                     )}
 
                                     {q.type === 'select' && (
                                         <Select onValueChange={(val) => handleAnswerChange(q.id, val)} required={q.required}>
-                                                    <SelectTrigger className="mt-2">
+                                            <SelectTrigger className="h-11 sm:h-10">
                                                 <SelectValue placeholder="Select an option" />
                                             </SelectTrigger>
                                             <SelectContent>
@@ -1201,149 +1353,121 @@ export default function UploadForm({ isPreview = false, formId, initialData }: {
                                     )}
 
                                     {q.type === 'radio' && (
-                                                <div className="mt-2 space-y-2">
-                                        <RadioGroup onValueChange={(val) => handleAnswerChange(q.id, val)} required={q.required}>
-                                            {q.options?.map((opt) => (
-                                                <div key={opt} className="flex items-center space-x-2">
-                                                    <RadioGroupItem value={opt} id={`${q.id}-${opt}`} />
-                                                    <Label htmlFor={`${q.id}-${opt}`}>{opt}</Label>
-                                                </div>
-                                            ))}
-                                        </RadioGroup>
-                                                </div>
-                                    )}
-
-                                    {q.type === 'checkbox' && (
-                                                <div className="mt-2 space-y-3">
-                                                    {(q.options && q.options.length > 0 ? q.options : ['Yes']).map((opt) => {
-                                                        const current = answers[q.id]
-                                                        const selected = Array.isArray(current)
-                                                            ? current.includes(opt)
-                                                            : !!current && current === opt
-
-                                                        const toggleOption = () => {
-                                                            let next: any[] = []
-                                                            if (Array.isArray(current)) {
-                                                                if (current.includes(opt)) {
-                                                                    next = current.filter((v: any) => v !== opt)
-                                                                } else {
-                                                                    next = [...current, opt]
-                                                                }
-                                                            } else {
-                                                                // start a new array from previous scalar/boolean value if present
-                                                                if (current && current !== opt) {
-                                                                    next = [current, opt]
-                                                                } else if (!current) {
-                                                                    next = [opt]
-                                                                } else {
-                                                                    // current === opt
-                                                                    next = []
-                                                                }
-                                                            }
-                                                            handleAnswerChange(q.id, next)
-                                                        }
-
-                                                        return (
-                                                            <div key={opt} className="flex items-center space-x-2">
-                                            <input
-                                                type="checkbox"
-                                                                    id={`${q.id}-${opt}`}
-                                                className="h-4 w-4 rounded border-gray-300"
-                                                style={{ accentColor: 'var(--primary-600)' }}
-                                                                    onFocus={(e) => (e.currentTarget.style.outlineColor = 'var(--primary-600)')}
-                                                                    checked={selected}
-                                                                    onChange={toggleOption}
-                                                                />
-                                                                <Label htmlFor={`${q.id}-${opt}`} className="font-normal">
-                                                                    {opt}
-                                                                </Label>
-                                                            </div>
-                                                        )
-                                                    })}
-
-                                                    {('allowOther' in q && (q as any).allowOther) && (() => {
-                                                        const opt = 'Other'
-                                                        const current = answers[q.id]
-                                                        const selected = Array.isArray(current)
-                                                            ? current.includes(opt)
-                                                            : !!current && current === opt
-
-                                                        const toggleOption = () => {
-                                                            let next: any[] = []
-                                                            if (Array.isArray(current)) {
-                                                                if (current.includes(opt)) {
-                                                                    next = current.filter((v: any) => v !== opt)
-                                                                } else {
-                                                                    next = [...current, opt]
-                                                                }
-                                                            } else {
-                                                                if (current && current !== opt) {
-                                                                    next = [current, opt]
-                                                                } else if (!current) {
-                                                                    next = [opt]
-                                                                } else {
-                                                                    next = []
-                                                                }
-                                                            }
-                                                            handleAnswerChange(q.id, next)
-                                                        }
-
-                                                        const otherKey = `${q.id}__other`
-                                                        const otherValue = (answers as any)[otherKey] || ''
-
-                                                        return (
-                                                            <div key={`${q.id}-other`} className="flex items-center gap-2 mt-2">
-                                                                <input
-                                                                    type="checkbox"
-                                                                    id={`${q.id}-other`}
-                                                                    className="h-4 w-4 rounded border-gray-300"
-                                                                    style={{ accentColor: 'var(--primary-600)' }}
-                                                                    onFocus={(e) => (e.currentTarget.style.outlineColor = 'var(--primary-600)')}
-                                                                    checked={selected}
-                                                                    onChange={toggleOption}
-                                                                />
-                                                                <div className="flex items-center gap-2 flex-1">
-                                                                    <span className="text-sm text-gray-600 font-normal">Other:</span>
-                                                                    <Input
-                                                                        value={otherValue}
-                                                                        onChange={(e) => handleAnswerChange(otherKey, e.target.value)}
-                                                                        disabled={!selected}
-                                                                        className={`h-8 flex-1 border-b border-dashed border-gray-300 border-x-0 border-t-0 rounded-none px-0 py-0 text-sm bg-transparent focus-visible:ring-0 ${selected ? 'focus-visible:border-primary-500' : 'text-gray-400 cursor-not-allowed'}`}
-                                                                    />
-                                                                </div>
-                                                            </div>
-                                                        )
-                                                    })()}
+                                        <div className="pt-1">
+                                            <RadioGroup onValueChange={(val) => handleAnswerChange(q.id, val)} required={q.required} className="gap-3">
+                                                {q.options?.map((opt) => (
+                                                    <div key={opt} className="flex items-center space-x-3 bg-gray-50/50 p-2.5 rounded-lg border border-gray-100">
+                                                        <RadioGroupItem value={opt} id={`${q.id}-${opt}`} />
+                                                        <Label htmlFor={`${q.id}-${opt}`} className="flex-1 cursor-pointer text-sm sm:text-base font-normal">{opt}</Label>
+                                                    </div>
+                                                ))}
+                                            </RadioGroup>
                                         </div>
                                     )}
 
-                                            {questionErrors[q.id] && (
-                                                <p className="text-sm text-red-500 mt-1">
-                                                    {questionErrors[q.id]}
-                                                </p>
-                                            )}
+                                    {q.type === 'checkbox' && (
+                                        <div className="pt-1 space-y-2.5">
+                                            {(q.options && q.options.length > 0 ? q.options : ['Yes']).map((opt) => {
+                                                const current = answers[q.id]
+                                                const selected = Array.isArray(current) ? current.includes(opt) : !!current && current === opt
+
+                                                const toggleOption = () => {
+                                                    let next: any[] = []
+                                                    if (Array.isArray(current)) {
+                                                        next = current.includes(opt) ? current.filter((v: any) => v !== opt) : [...current, opt]
+                                                    } else {
+                                                        next = current && current !== opt ? [current, opt] : (!current ? [opt] : [])
+                                                    }
+                                                    handleAnswerChange(q.id, next)
+                                                }
+
+                                                return (
+                                                    <div key={opt} className="flex items-center space-x-3 bg-gray-50/50 p-2.5 rounded-lg border border-gray-100 cursor-pointer" onClick={toggleOption}>
+                                                        <input
+                                                            type="checkbox"
+                                                            id={`${q.id}-${opt}`}
+                                                            className="h-4 w-4 rounded border-gray-300 pointer-events-none"
+                                                            style={{ accentColor: primaryColor }}
+                                                            checked={selected}
+                                                            readOnly
+                                                        />
+                                                        <Label className="flex-1 cursor-pointer text-sm sm:text-base font-normal pointer-events-none">{opt}</Label>
+                                                    </div>
+                                                )
+                                            })}
+
+                                            {('allowOther' in q && (q as any).allowOther) && (() => {
+                                                const opt = 'Other'
+                                                const current = answers[q.id]
+                                                const selected = Array.isArray(current) ? current.includes(opt) : !!current && current === opt
+                                                const otherKey = `${q.id}__other`
+                                                const otherValue = (answers as any)[otherKey] || ''
+
+                                                return (
+                                                    <div key={`${q.id}-other`} className="flex flex-col gap-2 p-2.5 rounded-lg border border-gray-100 bg-gray-50/50">
+                                                        <div className="flex items-center gap-3 cursor-pointer" onClick={() => {
+                                                            let next: any[] = []
+                                                            if (Array.isArray(current)) {
+                                                                next = current.includes(opt) ? current.filter((v: any) => v !== opt) : [...current, opt]
+                                                            } else {
+                                                                next = current && current !== opt ? [current, opt] : (!current ? [opt] : [])
+                                                            }
+                                                            handleAnswerChange(q.id, next)
+                                                        }}>
+                                                            <input
+                                                                type="checkbox"
+                                                                className="h-4 w-4 rounded border-gray-300 pointer-events-none"
+                                                                style={{ accentColor: primaryColor }}
+                                                                checked={selected}
+                                                                readOnly
+                                                            />
+                                                            <span className="text-sm sm:text-base text-gray-700 font-normal">Other</span>
+                                                        </div>
+                                                        {selected && (
+                                                            <div className="pl-7">
+                                                                <Input
+                                                                    value={otherValue}
+                                                                    onChange={(e) => handleAnswerChange(otherKey, e.target.value)}
+                                                                    placeholder="Please specify"
+                                                                    className="h-9 text-sm"
+                                                                />
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                )
+                                            })()}
+                                        </div>
+                                    )}
+
+                                    {questionErrors[q.id] && (
+                                        <p className="text-xs sm:text-sm text-red-500 mt-1">
+                                            {questionErrors[q.id]}
+                                        </p>
+                                    )}
                                 </div>
                             ))}
 
                             {/* Upload Fields */}
-                            <div className="space-y-4">
+                            <div className="space-y-6 pt-2">
                                 {filledUploadFields.map((field) => (
-                                    <FileDropzone
-                                        key={field.id}
-                                        fieldId={field.id}
-                                        label={field.label}
-                                                accept={buildAcceptFromAllowedTypes(field.allowedTypes)}
-                                                allowedTypesHint={buildAllowedTypesHint(field.allowedTypes)}
-                                                allowMultiple={field.allowMultiple !== false}
-                                                allowFolder={field.allowFolder !== false}
-                                        files={files[field.id] || []}
-                                        onDrop={(newFiles, isFromFolder) => handleFileDrop(field.id, newFiles, isFromFolder)}
-                                        onRemove={(index) => handleFileRemove(field.id, index)}
-                                        primaryColor={primaryColor}
-                                        errors={fileErrors[field.id]}
-                                        uploadProgress={uploadProgress[field.id]}
-                                        uploading={uploading}
-                                    />
+                                    <div key={field.id} className="p-0 sm:p-0">
+                                        <FileDropzone
+                                            fieldId={field.id}
+                                            label={field.label}
+                                            accept={buildAcceptFromAllowedTypes(field.allowedTypes)}
+                                            allowedTypesHint={buildAllowedTypesHint(field.allowedTypes)}
+                                            allowMultiple={field.allowMultiple !== false}
+                                            allowFolder={field.allowFolder !== false}
+                                            files={files[field.id] || []}
+                                            onDrop={(newFiles, isFromFolder) => handleFileDrop(field.id, newFiles, isFromFolder)}
+                                            onRemove={(index) => handleFileRemove(field.id, index)}
+                                            primaryColor={primaryColor}
+                                            errors={fileErrors[field.id]}
+                                            uploadProgress={uploadProgress[field.id]}
+                                            uploading={uploading}
+                                            onViewFolder={(fieldId, folderName) => setViewingFolder({ fieldId, folderName })}
+                                        />
+                                    </div>
                                 ))}
                             </div>
                                 </>
@@ -1352,16 +1476,15 @@ export default function UploadForm({ isPreview = false, formId, initialData }: {
 
                         </CardContent>
                         {(() => {
-                            // Filter to only show fields with filled labels
                             const filledQuestions = config?.customQuestions?.filter(q => q.label && q.label.trim() !== '') || []
                             const filledUploadFields = config?.uploadFields?.filter(field => field.label && field.label.trim() !== '') || []
                             
                             return (filledQuestions.length > 0 || filledUploadFields.length > 0) && (
-                        <CardFooter>
-                            <Button className="w-full" type="submit" disabled={uploading} style={{ backgroundColor: primaryColor, color: buttonTextColor }}>
-                                {uploading ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Uploading...</> : "Submit Upload"}
-                            </Button>
-                        </CardFooter>
+                                <CardFooter className="px-4 sm:px-6 pb-8">
+                                    <Button className="w-full h-12 text-base font-semibold shadow-lg hover:shadow-xl transition-all" type="submit" disabled={uploading} style={{ backgroundColor: primaryColor, color: buttonTextColor }}>
+                                        {uploading ? <><Loader2 className="w-5 h-5 mr-2 animate-spin" /> Uploading...</> : "Submit Upload"}
+                                    </Button>
+                                </CardFooter>
                             )
                         })()}
                     </form>
@@ -1369,35 +1492,119 @@ export default function UploadForm({ isPreview = false, formId, initialData }: {
             )}
 
             {step === 'success' && (
-                <Card className={cn(cardClasses, "text-center")}>
-                    <CardHeader>
+                <Card className={cn(cardClasses, "text-center border-0 sm:border")}>
+                    <CardHeader className="px-4 sm:px-6 pt-8">
                         <div className="mx-auto bg-green-100 p-4 rounded-full w-fit mb-4">
-                            <CheckCircle className="w-8 h-8 text-green-600" />
+                            <CheckCircle className="w-8 h-8 sm:w-10 sm:h-10 text-green-600" />
                         </div>
-                        <CardTitle className="text-2xl text-green-700">Upload Successful!</CardTitle>
-                        <CardDescription>Your files have been securely uploaded.</CardDescription>
+                        <CardTitle className="text-2xl sm:text-3xl text-green-700">Successful!</CardTitle>
+                        <CardDescription className="text-sm sm:text-base">Your files have been securely uploaded.</CardDescription>
                     </CardHeader>
-                    <CardContent className="space-y-6">
-                        <div className="bg-muted p-4 rounded-md">
-                            <p className="text-sm text-muted-foreground mb-1">Reference ID</p>
-                            <div className="flex items-center justify-center gap-2">
-                                <code className="text-xl font-mono font-bold">{referenceId}</code>
-                                <Button variant="ghost" size="sm" onClick={() => navigator.clipboard.writeText(referenceId)}>Copy</Button>
+                    <CardContent className="space-y-6 px-4 sm:px-6">
+                        <div className="bg-muted/50 p-4 sm:p-6 rounded-2xl border border-dashed border-gray-200">
+                            <p className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wider font-bold mb-2">Reference ID</p>
+                            <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+                                <code className="text-lg sm:text-xl font-mono font-bold text-gray-900 bg-white px-4 py-2 rounded-xl border border-gray-100 shadow-sm break-all">{referenceId}</code>
+                                <Button variant="outline" size="sm" className="h-9 px-4 rounded-lg bg-white" onClick={() => {
+                                    navigator.clipboard.writeText(referenceId)
+                                    // Add a small toast or visual feedback here if needed
+                                }}>Copy ID</Button>
                             </div>
                         </div>
-                        <p className="text-sm text-muted-foreground">
-                            Your upload has been recorded. You can save this reference ID for your records.
+                        <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
+                            Your upload has been recorded. Save this reference ID for your records.
                         </p>
                     </CardContent>
-                    <CardFooter className="flex justify-center">
+                    <CardFooter className="flex flex-col gap-3 px-4 sm:px-6 pb-10">
                         {config?.enableSubmitAnother && (
-                            <Button variant="outline" onClick={resetForm}>
+                            <Button variant="outline" className="w-full h-11 rounded-xl" onClick={resetForm}>
                                 <RefreshCcw className="w-4 h-4 mr-2" /> Submit Another Response
                             </Button>
                         )}
                     </CardFooter>
                 </Card>
             )}
+            
+            {/* Folder Viewer Modal */}
+            {viewingFolder && (() => {
+                const fieldFiles = files[viewingFolder.fieldId] || []
+                const folderFiles = fieldFiles.filter(f => 
+                    f._isFromFolder && f._folderName === viewingFolder.folderName
+                )
+                const totalSize = folderFiles.reduce((acc, f) => acc + f.size, 0)
+                
+                const formatFileSize = (bytes: number): string => {
+                    if (bytes === 0) return '0 Bytes'
+                    const k = 1024
+                    const sizes = ['Bytes', 'KB', 'MB', 'GB']
+                    const i = Math.floor(Math.log(bytes) / Math.log(k))
+                    return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i]
+                }
+                
+                const getFileIcon = (file: File) => {
+                    const type = file.type
+                    const className = "w-6 h-6 text-blue-600"
+                    
+                    if (type.includes('image')) return <BsImage className={className} />
+                    if (type.includes('pdf')) return <BsFileEarmarkPdf className={className} />
+                    if (type.includes('word')) return <BsFileEarmarkWord className={className} />
+                    if (type.includes('excel') || type.includes('spreadsheet')) return <BsFileEarmarkExcel className={className} />
+                    return <BsFileEarmarkText className={className} />
+                }
+                
+                return (
+                    <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4"
+                        onClick={() => setViewingFolder(null)}>
+                        <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[80vh] overflow-hidden"
+                            onClick={(e) => e.stopPropagation()}>
+                            {/* Header */}
+                            <div className="p-4 border-b flex items-center justify-between bg-blue-50">
+                                <div className="flex items-center gap-3">
+                                    <Folder className="w-6 h-6 text-blue-600" />
+                                    <div>
+                                        <h3 className="font-semibold text-lg text-gray-900">
+                                            {viewingFolder.folderName}
+                                        </h3>
+                                        <p className="text-sm text-gray-600">
+                                            {folderFiles.length} {folderFiles.length === 1 ? 'file' : 'files'} • {formatFileSize(totalSize)}
+                                        </p>
+                                    </div>
+                                </div>
+                                <Button variant="ghost" size="sm" onClick={() => setViewingFolder(null)}>
+                                    <X className="w-5 h-5" />
+                                </Button>
+                            </div>
+                            
+                            {/* File List */}
+                            <div className="p-4 max-h-[60vh] overflow-y-auto">
+                                <div className="space-y-2">
+                                    {folderFiles.map((file, index) => (
+                                        <div key={`${file.name}-${index}`}
+                                            className="flex items-center gap-3 p-3 rounded-lg border bg-gray-50 hover:bg-gray-100 transition-colors">
+                                            <div className="flex-shrink-0">{getFileIcon(file)}</div>
+                                            <div className="flex-1 min-w-0">
+                                                <p className="text-sm font-medium text-gray-900 truncate">
+                                                    {file.name}
+                                                </p>
+                                                <p className="text-xs text-gray-600">
+                                                    {formatFileSize(file.size)}
+                                                </p>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                            
+                            {/* Footer */}
+                            <div className="p-4 border-t bg-gray-50 flex justify-end">
+                                <Button variant="outline" onClick={() => setViewingFolder(null)}>
+                                    Close
+                                </Button>
+                            </div>
+                        </div>
+                    </div>
+                )
+            })()}
         </div>
     )
 }

@@ -119,7 +119,11 @@ export default async function UploadPage({ params }: { params: Promise<{ formId:
         logoUrl: formData.logoUrl || '',
         expiryDate: formData.expiryDate ? formData.expiryDate.toISOString() : null,
         uploadFields,
-        customQuestions
+        customQuestions,
+        accessProtectionType: formData.isPasswordProtected 
+            ? 'PASSWORD' 
+            : (formData.accessLevel === 'INVITED' ? 'GOOGLE' : 'PUBLIC'),
+        allowedDomains: formData.allowedDomains || ''
     }
 
     return (
@@ -130,7 +134,7 @@ export default async function UploadPage({ params }: { params: Promise<{ formId:
             }}
         >
             <div className="flex-grow">
-                <UploadForm formId={formId} initialData={parsedForm as any} />
+                <UploadForm formId={formId} initialData={parsedForm as any} formOwnerId={formData.userId} />
             </div>
 
             <footer className="mt-12 text-center text-sm text-gray-500 pb-6">
