@@ -49,6 +49,7 @@ export const authOptions: NextAuthOptions = {
                                     type: account.type,
                                     provider: account.provider,
                                     providerAccountId: account.providerAccountId,
+                                    email: user.email, // Store email in Account table
                                     refresh_token: account.refresh_token,
                                     access_token: account.access_token,
                                     expires_at: account.expires_at,
@@ -56,21 +57,22 @@ export const authOptions: NextAuthOptions = {
                                     scope: account.scope,
                                     id_token: account.id_token,
                                     session_state: account.session_state,
-                                }
+                                } as any
                             });
                             console.log("Linked Google account to existing user:", user.email);
                             // Update user.id so PrismaAdapter knows to use existing user
                             user.id = existingUser.id;
                         } else {
-                            // Update existing account tokens
+                            // Update existing account tokens and email
                             await prisma.account.update({
                                 where: { id: googleAccount.id },
                                 data: {
+                                    email: user.email, // Update email in Account table
                                     access_token: account.access_token,
                                     expires_at: account.expires_at,
                                     refresh_token: account.refresh_token || googleAccount.refresh_token,
                                     id_token: account.id_token,
-                                }
+                                } as any
                             });
                             user.id = existingUser.id;
                         }

@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useSession, signIn } from "next-auth/react"
+import { useSession, signIn, signOut } from "next-auth/react"
 import { useDropzone } from "react-dropzone"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -537,6 +537,7 @@ export default function UploadForm({ isPreview = false, formId, initialData, for
 
         if (config.accessProtectionType === 'GOOGLE') {
             if (!session) {
+                setIsDomainBlocked(false) // Reset when no session
                 setStep('google_auth')
             } else {
                 // Check domains if restricted
@@ -551,9 +552,11 @@ export default function UploadForm({ isPreview = false, formId, initialData, for
                     if (!userDomain || !domains.includes(userDomain)) {
                         setIsDomainBlocked(true)
                         setError("Access Denied: Your email domain is not authorized to access this form.")
+                        setStep('google_auth') // Show the access denied modal
                         return
                     }
                 }
+                setIsDomainBlocked(false) // Reset domain blocked state if domain is allowed
                 setStep('form')
             }
         } else if (config.accessProtectionType === 'PASSWORD') {
@@ -1043,7 +1046,10 @@ export default function UploadForm({ isPreview = false, formId, initialData, for
     }
 
     if (loading) return <div className="flex justify-center items-center min-h-[400px]"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>
-    if (error) return <div className="flex justify-center items-center min-h-[400px] text-red-500"><p>{error}</p></div>
+    // Don't show early error return for domain blocked errors - they should be shown in the google_auth step modal
+    if (error && !(step === 'google_auth' && isDomainBlocked)) {
+        return <div className="flex justify-center items-center min-h-[400px] text-red-500"><p>{error}</p></div>
+    }
 
     // Check if form is accepting responses
     if (!isPreview && config && !config.isAcceptingResponses) {
@@ -1159,29 +1165,44 @@ export default function UploadForm({ isPreview = false, formId, initialData, for
             {step === 'google_auth' && (
                 <Card className={cn(cardClasses, "border-0 sm:border")}>
                     <CardHeader className="text-center px-4 sm:px-6">
-                        <div className="mx-auto bg-primary/10 p-3 rounded-full w-fit mb-4">
-                            <Lock className="w-5 h-5 sm:w-6 sm:h-6" style={{ color: primaryColor }} />
-                        </div>
-                        <CardTitle className="text-xl sm:text-2xl">Sign In Required</CardTitle>
-                        <CardDescription className="text-sm">
-                            {isDomainBlocked 
-                                ? "Access Denied" 
-                                : "Please sign in with your Google account to access this form."}
-                        </CardDescription>
+                        {isDomainBlocked ? (
+                            <>
+                                <div className="mx-auto bg-red-100 p-3 rounded-full w-fit mb-4">
+                                    <X className="w-5 h-5 sm:w-6 sm:h-6 text-red-500" />
+                                </div>
+                                <CardTitle className="text-xl sm:text-2xl text-red-500">Access Denied</CardTitle>
+                                <CardDescription className="text-sm text-gray-700">
+                                    {error?.replace("Access Denied: ", "") || "Your email domain is not authorized to access this form."}
+                                </CardDescription>
+                            </>
+                        ) : (
+                            <>
+                                <div className="mx-auto bg-primary/10 p-3 rounded-full w-fit mb-4">
+                                    <Lock className="w-5 h-5 sm:w-6 sm:h-6 text-primary-600" />
+                                </div>
+                                <CardTitle className="text-xl sm:text-2xl">Sign In Required</CardTitle>
+                                <CardDescription className="text-sm">
+                                    Please sign in with your Google account to access this form.
+                                </CardDescription>
+                            </>
+                        )}
                     </CardHeader>
                     <CardContent className="space-y-4 px-4 sm:px-6 text-center">
                         {isDomainBlocked ? (
-                            <div className="p-4 bg-red-50 text-red-800 rounded-lg border border-red-100 text-sm">
-                                <AlertCircle className="w-5 h-5 mx-auto mb-2 text-red-600" />
-                                <p>{error}</p>
-                                <Button 
-                                    variant="outline" 
-                                    className="mt-4 w-full"
-                                    onClick={() => window.location.reload()}
-                                >
-                                    Try Another Account
-                                </Button>
-                            </div>
+                            <Button 
+                                className="w-full h-12 font-semibold"
+                                onClick={async () => {
+                                    // Sign out current session
+                                    await signOut({ redirect: false })
+                                    // Reset state to show sign-in screen
+                                    setIsDomainBlocked(false)
+                                    setError("")
+                                    setStep('google_auth')
+                                }}
+                            >
+                                <RefreshCcw className="w-5 h-5 mr-2" />
+                                Try Another Account
+                            </Button>
                         ) : (
                             <div className="space-y-4">
                                 <p className="text-sm text-gray-600">
@@ -1190,7 +1211,7 @@ export default function UploadForm({ isPreview = false, formId, initialData, for
                                 <Button 
                                     className="w-full h-12 flex items-center justify-center gap-3 font-semibold"
                                     onClick={() => signIn('google')}
-                                    style={{ backgroundColor: primaryColor, color: buttonTextColor }}
+                                    
                                 >
                                     <svg className="w-5 h-5" viewBox="0 0 24 24">
                                         <path

@@ -439,7 +439,7 @@ export default function AdminDashboard() {
                                                             form.type === 'Published' 
                                                                 ? 'bg-green-50 text-green-600 border-green-100' 
                                                                 : form.type === 'Expired'
-                                                                ? 'bg-red-50 text-red-600 border-red-100'
+                                                                ? 'bg-yellow-50 text-yellow-600 border-yellow-100'
                                                                 : form.type === 'Draft'
                                                                 ? 'bg-blue-50 text-blue-600 border-blue-100'
                                                                 : 'bg-gray-50 text-gray-600 border-gray-100'
@@ -457,7 +457,7 @@ export default function AdminDashboard() {
                                                             className={`scale-75 ${expired ? 'opacity-50 cursor-not-allowed' : ''}`}
                                                         />
                                                         <span className={`font-semibold ${effectiveStatus ? 'text-green-600' : 'text-gray-500'}`}>
-                                                            {expired ? 'Expired' : (effectiveStatus ? 'Accepting' : 'Paused')}
+                                                            {expired ? 'Expired' : (effectiveStatus ? 'Active' : 'Inactive')}
                                                         </span>
                                                     </div>
                                                     <span className="text-gray-300 hidden lg:inline">|</span>
@@ -601,7 +601,7 @@ export default function AdminDashboard() {
                     {forms.filter((form) => form.isPublished === true && isFormExpired(form)).length > 0 && (
                         <div className="space-y-4">
                             <h3 className="text-lg sm:text-xl font-semibold text-gray-900 flex items-center gap-2">
-                                <AlertTriangle className="w-5 h-5 text-red-600" />
+                                <AlertTriangle className="w-5 h-5 text-yellow-600" />
                                 Expired
                             </h3>
                             <div className="grid grid-cols-1 gap-4">
@@ -615,7 +615,7 @@ export default function AdminDashboard() {
                                                 <div className="flex items-center gap-3 min-w-0">
                                                     <h3 className="text-base
                                                      sm:text-lg font-bold text-gray-900 truncate max-w-[200px] sm:max-w-md">{form.title}</h3>
-                                                    <span className="text-[10px] sm:text-[11px] font-medium px-2 py-0.5 rounded-full bg-red-50 text-red-600 border border-red-100">
+                                                    <span className="text-[10px] sm:text-[11px] font-medium px-2 py-0.5 rounded-full bg-yellow-50 text-yellow-600 border border-yellow-400">
                                                         Expired
                                                     </span>
                                                 </div>

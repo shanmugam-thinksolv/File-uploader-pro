@@ -176,7 +176,6 @@ export default function Home() {
                     <div className="w-20 h-20 rounded-3xl flex items-center justify-center mx-auto mb-4 bg-primary-50 group-hover:scale-110 group-hover:rotate-3 transition-transform duration-300">
                       <FileText className="w-10 h-10 text-primary-600" />
                     </div>
-                    <div className="absolute -top-2 -right-2 w-8 h-8 rounded-full bg-white border-4 border-primary-50 flex items-center justify-center font-bold text-primary-600 text-sm shadow-sm hidden md:flex">1</div>
                   </div>
                   <h3 className="text-xl sm:text-2xl font-bold text-gray-900 mb-3">Create Your Form</h3>
                   <p className="text-base sm:text-lg text-gray-600 leading-relaxed">
@@ -196,7 +195,6 @@ export default function Home() {
                     <div className="w-20 h-20 rounded-3xl flex items-center justify-center mx-auto mb-4 bg-primary-50 group-hover:scale-110 group-hover:-rotate-3 transition-transform duration-300">
                       <Share2 className="w-10 h-10 text-primary-600" />
                     </div>
-                    <div className="absolute -top-2 -right-2 w-8 h-8 rounded-full bg-white border-4 border-primary-50 flex items-center justify-center font-bold text-primary-600 text-sm shadow-sm hidden md:flex">2</div>
                   </div>
                   <h3 className="text-xl sm:text-2xl font-bold text-gray-900 mb-3">Share the Link</h3>
                   <p className="text-base sm:text-lg text-gray-600 leading-relaxed">
@@ -216,7 +214,6 @@ export default function Home() {
                     <div className="w-20 h-20 rounded-3xl flex items-center justify-center mx-auto mb-4 bg-primary-50 group-hover:scale-110 group-hover:rotate-3 transition-transform duration-300">
                       <Cloud className="w-10 h-10 text-primary-600" />
                     </div>
-                    <div className="absolute -top-2 -right-2 w-8 h-8 rounded-full bg-white border-4 border-primary-50 flex items-center justify-center font-bold text-primary-600 text-sm shadow-sm hidden md:flex">3</div>
                   </div>
                   <h3 className="text-xl sm:text-2xl font-bold text-gray-900 mb-3">Get Files in Drive</h3>
                   <p className="text-base sm:text-lg text-gray-600 leading-relaxed">

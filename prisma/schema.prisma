@@ -97,6 +97,7 @@ model Account {
   type              String
   provider          String
   providerAccountId String
+  email             String?  // Email address from the OAuth provider
   refresh_token     String?
   access_token      String?
   expires_at        Int?

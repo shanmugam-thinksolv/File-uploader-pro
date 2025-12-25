@@ -3,8 +3,7 @@
 import { useState } from "react"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
-import { Input } from "@/components/ui/input"
-import { Button } from "@/components/ui/button"
+
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip"
 import { Plus, X, FileSpreadsheet, Info } from "lucide-react"
 import { TabTransition } from '../TabTransition'
@@ -75,7 +74,8 @@ export function OrganizationStep({ formData, updateField }: OrganizationStepProp
                         />
                     </div>
 
-                    <div className="space-y-4 p-4 rounded-xl bg-slate-50 border border-slate-100">
+                    {/* Temporarily commented out subfolder organization */}
+                    {/* <div className="space-y-4 p-4 rounded-xl bg-slate-50 border border-slate-100">
                         <div className="flex items-center justify-between">
                             <div className="space-y-1">
                                 <Label className="text-sm font-medium text-slate-900">Subfolder Organization</Label>
@@ -132,7 +132,7 @@ export function OrganizationStep({ formData, updateField }: OrganizationStepProp
                                 </div>
                             </div>
                         )}
-                    </div>
+                    </div> */}
                 </div>
             </div>
         </TabTransition>

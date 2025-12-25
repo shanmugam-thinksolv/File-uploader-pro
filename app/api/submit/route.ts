@@ -31,26 +31,33 @@ export async function POST(request: Request) {
         }
 
         // Fetch form to check if metadata spreadsheet is enabled and if form has expired
-        const form = await prisma.form.findUnique({
-            where: { id: formId }
-        }) as any;
+        // Use raw SQL to ensure all fields are retrieved correctly, 
+        // especially allowedDomains which might be missing in Prisma client types.
+        const forms = await prisma.$queryRawUnsafe<any[]>(
+            `SELECT * FROM "Form" WHERE id = $1 LIMIT 1`,
+            formId
+        );
+        const form = forms[0];
         
+        // Handle field casing from raw SQL (PostgreSQL might return lowercase)
+        const getField = (obj: any, field: string) => obj[field] !== undefined ? obj[field] : obj[field.toLowerCase()];
+
         // Extract needed fields with defaults
         const formData = {
-            userId: form?.userId,
-            title: form?.title,
-            enableMetadataSpreadsheet: form?.enableMetadataSpreadsheet ?? false,
-            enableResponseSheet: form?.enableResponseSheet ?? false,
-            responseSheetId: form?.responseSheetId,
-            driveFolderId: form?.driveFolderId,
-            expiryDate: form?.expiryDate,
-            isAcceptingResponses: form?.isAcceptingResponses,
-            uploadFields: form?.uploadFields,
-            customQuestions: form?.customQuestions,
-            isPasswordProtected: form?.isPasswordProtected ?? false,
-            password: form?.password,
-            accessLevel: form?.accessLevel,
-            allowedDomains: form?.allowedDomains
+            userId: getField(form, 'userId'),
+            title: getField(form, 'title'),
+            enableMetadataSpreadsheet: getField(form, 'enableMetadataSpreadsheet') ?? false,
+            enableResponseSheet: getField(form, 'enableResponseSheet') ?? false,
+            responseSheetId: getField(form, 'responseSheetId'),
+            driveFolderId: getField(form, 'driveFolderId'),
+            expiryDate: getField(form, 'expiryDate'),
+            isAcceptingResponses: getField(form, 'isAcceptingResponses'),
+            uploadFields: getField(form, 'uploadFields'),
+            customQuestions: getField(form, 'customQuestions'),
+            isPasswordProtected: getField(form, 'isPasswordProtected') ?? false,
+            password: getField(form, 'password'),
+            accessLevel: getField(form, 'accessLevel'),
+            allowedDomains: getField(form, 'allowedDomains')
         };
 
         if (!form || !formData.userId) {

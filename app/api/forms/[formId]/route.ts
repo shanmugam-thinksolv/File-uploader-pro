@@ -21,14 +21,14 @@ export async function GET(
 ) {
     try {
         const { formId } = await params;
-        const form = await prisma.form.findUnique({
-            where: { id: formId },
-            include: {
-                _count: {
-                    select: { submissions: true }
-                }
-            }
-        });
+        
+        // Use raw SQL to fetch the form to ensure all fields are retrieved correctly,
+        // even if Prisma client is out of sync.
+        const forms = await prisma.$queryRawUnsafe<any[]>(
+            `SELECT * FROM "Form" WHERE id = $1 LIMIT 1`,
+            formId
+        );
+        const form = forms[0];
 
         if (!form) {
             return NextResponse.json(
@@ -37,15 +37,44 @@ export async function GET(
             );
         }
 
+        // Add submission count separately if needed, or just return 0 for now if raw SQL doesn't include it
+        const submissionCount = await prisma.submission.count({
+            where: { formId }
+        });
+        
+        // Handle field casing from raw SQL (PostgreSQL might return lowercase)
+        const getField = (obj: any, field: string) => obj[field] !== undefined ? obj[field] : obj[field.toLowerCase()];
+
+        // Normalize form object for frontend
+        const normalizedForm: any = {};
+        const fields = [
+            'id', 'title', 'description', 'logoUrl', 'primaryColor', 'secondaryColor',
+            'backgroundColor', 'fontFamily', 'buttonTextColor', 'cardStyle',
+            'borderRadius', 'coverImageUrl', 'allowedTypes', 'maxSizeMB',
+            'driveEnabled', 'driveFolderId', 'driveFolderName', 'driveFolderUrl',
+            'isPasswordProtected', 'password', 'isCaptchaEnabled', 'enableSubmitAnother',
+            'isPublished', 'isAcceptingResponses', 'expiryDate', 'type', 'accessLevel',
+            'allowedEmails', 'allowedDomains', 'emailFieldControl', 'enableMetadataSpreadsheet',
+            'enableResponseSheet', 'responseSheetId', 'subfolderOrganization',
+            'customSubfolderField', 'enableSmartGrouping', 'uploadFields',
+            'customQuestions', 'createdAt', 'updatedAt', 'userId'
+        ];
+        
+        fields.forEach(f => {
+            normalizedForm[f] = getField(form, f);
+        });
+
+        normalizedForm._count = { submissions: submissionCount };
+
         // Check if form has expired
-        if (form.expiryDate) {
-            const expiryDate = new Date(form.expiryDate);
+        if (normalizedForm.expiryDate) {
+            const expiryDate = new Date(normalizedForm.expiryDate);
             const now = new Date();
             if (now > expiryDate) {
                 return NextResponse.json(
                     {
                         error: 'Form expired',
-                        expiryDate: form.expiryDate,
+                        expiryDate: normalizedForm.expiryDate,
                         message: 'This form is no longer accepting submissions.'
                     },
                     { status: 410 } // 410 Gone - resource is no longer available
@@ -54,17 +83,17 @@ export async function GET(
         }
 
         // Calculate and update type if needed
-        const formType = calculateFormType(form.isPublished, form.expiryDate);
+        const formType = calculateFormType(normalizedForm.isPublished, normalizedForm.expiryDate);
         
         // Derive accessProtectionType for the frontend
         let accessProtectionType = 'PUBLIC';
-        if (form.isPasswordProtected) {
+        if (normalizedForm.isPasswordProtected) {
             accessProtectionType = 'PASSWORD';
-        } else if (form.accessLevel === 'INVITED') {
+        } else if (normalizedForm.accessLevel === 'INVITED') {
             accessProtectionType = 'GOOGLE';
         }
 
-        if (form.type !== formType) {
+        if (normalizedForm.type !== formType) {
             try {
                 // Use raw SQL to update the type field to bypass Prisma Client's 
                 // "Unknown argument type" error if the client hasn't been regenerated yet.
@@ -80,7 +109,7 @@ export async function GET(
             }
         }
 
-        return NextResponse.json({ ...form, type: formType, accessProtectionType });
+        return NextResponse.json({ ...normalizedForm, type: formType, accessProtectionType });
     } catch (error: any) {
         console.error('Error fetching form:', error);
         console.error('Error details:', {
@@ -119,7 +148,7 @@ export async function PUT(
             'allowedEmails', 'emailFieldControl', 'enableMetadataSpreadsheet',
             'enableResponseSheet', 'responseSheetId',
             'subfolderOrganization', 'customSubfolderField', 'enableSmartGrouping',
-            'uploadFields', 'customQuestions'
+            'uploadFields', 'customQuestions', 'allowedDomains'
         ];
 
         // Filter body to only include allowed fields
@@ -140,14 +169,20 @@ export async function PUT(
         if (body.accessProtectionType !== undefined) {
             if (body.accessProtectionType === 'PASSWORD') {
                 updateData.isPasswordProtected = true;
+                updateData.accessLevel = 'ANYONE'; // Password protection is public with a gate
                 // Handle empty password strings
                 if (updateData.password === '' || updateData.password === null || updateData.password === undefined) {
                     updateData.password = null;
                 }
-            } else {
-                // PUBLIC or GOOGLE - no password protection
+            } else if (body.accessProtectionType === 'GOOGLE') {
                 updateData.isPasswordProtected = false;
                 updateData.password = null;
+                updateData.accessLevel = 'INVITED'; // Google Sign-In implies restricted access
+            } else {
+                // PUBLIC - no protection
+                updateData.isPasswordProtected = false;
+                updateData.password = null;
+                updateData.accessLevel = 'ANYONE';
             }
         } else if (updateData.password && updateData.password.trim() !== '') {
             // If password is provided but accessProtectionType wasn't, assume password protection

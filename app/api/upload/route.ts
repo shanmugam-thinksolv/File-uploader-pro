@@ -24,27 +24,24 @@ export async function POST(request: Request) {
         }
 
         // Find the form to get the owner and validate access
-        const form = await prisma.form.findUnique({
-            where: { id: formId },
-            select: { 
-                userId: true, 
-                driveEnabled: true, 
-                driveFolderId: true,
-                isPasswordProtected: true,
-                password: true,
-                expiryDate: true,
-                isAcceptingResponses: true,
-                accessLevel: true, // Needed for Google Sign-In check
-                allowedDomains: true // Needed for Google Sign-In check
-            }
-        } as any) as any;
+        // Use raw SQL to ensure all fields are retrieved correctly, 
+        // especially allowedDomains which might be missing in Prisma client types.
+        const forms = await prisma.$queryRawUnsafe<any[]>(
+            `SELECT * FROM "Form" WHERE id = $1 LIMIT 1`,
+            formId
+        );
+        const form = forms[0];
 
         if (!form || !form.userId) {
             return NextResponse.json({ error: 'Form not found or has no owner' }, { status: 404 });
         }
 
+        // Handle field casing from raw SQL (PostgreSQL might return lowercase)
+        const accessLevel = form.accessLevel || form.accesslevel;
+        const allowedDomainsRaw = form.allowedDomains || form.alloweddomains || "";
+
         // SECURITY: Check Google Sign-In restriction
-        if (form.accessLevel === 'INVITED') {
+        if (accessLevel === 'INVITED') {
             const session = await getServerSession(authOptions);
             if (!session || !session.user || !session.user.email) {
                 return NextResponse.json({ 
@@ -54,8 +51,8 @@ export async function POST(request: Request) {
             }
 
             // Check domain if configured
-            const allowedDomains = form.allowedDomains 
-                ? form.allowedDomains.split(',').map((d: string) => d.trim().toLowerCase()).filter(Boolean)
+            const allowedDomains = allowedDomainsRaw 
+                ? allowedDomainsRaw.split(',').map((d: string) => d.trim().toLowerCase()).filter(Boolean)
                 : [];
             
             if (allowedDomains.length > 0) {

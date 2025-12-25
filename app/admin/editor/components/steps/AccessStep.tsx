@@ -21,13 +21,21 @@ export function AccessTab({ formData, updateField, addCustomQuestion }: AccessTa
     const [isEmailTooltipOpen, setIsEmailTooltipOpen] = useState<string | null>(null)
     const [isAllowedDomainsTooltipOpen, setIsAllowedDomainsTooltipOpen] = useState(false)
     const [pendingPassword, setPendingPassword] = useState<string | null>(null)
+    const [pendingAllowedDomains, setPendingAllowedDomains] = useState<string | null>(null)
+    const [passwordSaved, setPasswordSaved] = useState(false)
+    const [allowedDomainsSaved, setAllowedDomainsSaved] = useState(false)
     const dateInputRef = useRef<HTMLInputElement>(null)
     const prevAccessTypeRef = useRef<string | undefined>(formData.accessProtectionType)
     
-    // Reset pending password when switching away from password protection
+    // Reset pending values when switching access protection type
     useEffect(() => {
         if (formData.accessProtectionType !== 'PASSWORD') {
             setPendingPassword(null)
+            setPasswordSaved(false)
+        }
+        if (formData.accessProtectionType !== 'GOOGLE') {
+            setPendingAllowedDomains(null)
+            setAllowedDomainsSaved(false)
         }
     }, [formData.accessProtectionType])
     
@@ -210,7 +218,20 @@ export function AccessTab({ formData, updateField, addCustomQuestion }: AccessTa
                                         updateField('expiryDate', null)
                                     }
                                 }}
-                                onClick={(e) => e.stopPropagation()}
+                                onClick={(e) => {
+                                    e.stopPropagation()
+                                    // Open the calendar picker when clicking anywhere in the input
+                                    // Use the event target directly to ensure user gesture context
+                                    const input = e.currentTarget as HTMLInputElement
+                                    if (input && typeof input.showPicker === 'function') {
+                                        try {
+                                            input.showPicker()
+                                        } catch (error) {
+                                            // If showPicker fails, the native picker will still work
+                                            console.log('showPicker error:', error)
+                                        }
+                                    }
+                                }}
                                 className="w-full sm:w-auto px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all duration-200 cursor-pointer"
                             />
                         </div>
@@ -314,23 +335,31 @@ export function AccessTab({ formData, updateField, addCustomQuestion }: AccessTa
                                     <div className="mt-4 space-y-4 animate-in fade-in slide-in-from-top-1 pl-1">
                                         <div className="space-y-2">
                                             <Label className="text-xs font-medium text-slate-600">Set Password :</Label>
-                                            <div className="relative">
+                                            <div className="relative mt-2">
                                                 <Input
                                                     type="text"
                                                     placeholder="Enter your password..."
                                                     value={pendingPassword !== null ? pendingPassword : (formData.password || "")}
-                                                    onChange={(e) => setPendingPassword(e.target.value)}
-                                                    className="h-10 mt-2 border-slate-200 rounded-lg px-3 pr-10 placeholder:text-slate-400 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                                                    onChange={(e) => {
+                                                        setPendingPassword(e.target.value)
+                                                        setPasswordSaved(false) // Reset saved state when typing
+                                                    }}
+                                                    className="h-10 w-full border-slate-200 rounded-lg px-3 pr-24 placeholder:text-slate-400 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                                                 />
-                                                {pendingPassword !== null && pendingPassword !== formData.password && (
+                                                {(pendingPassword !== null || passwordSaved) && (
                                                     <Button
                                                         onClick={() => {
-                                                            updateField('password', pendingPassword)
+                                                            updateField('password', pendingPassword || formData.password || "")
+                                                            setPasswordSaved(true)
                                                             setPendingPassword(null)
+                                                            // Hide button after 1.5 seconds
+                                                            setTimeout(() => {
+                                                                setPasswordSaved(false)
+                                                            }, 1500)
                                                         }}
-                                                        className="absolute right-2 top-[calc(0.4rem+0.2px)] h-7 px-2 py-1 text-sm rounded-lg font-medium transition-all shadow-sm bg-primary-600 text-white hover:bg-primary-700"
+                                                        className="absolute right-1.5 top-1.5 h-7 px-2.5 py-1 text-xs rounded-md font-semibold transition-all shadow-sm bg-primary-600 text-white hover:bg-primary-700 flex items-center gap-1"
                                                     >
-                                                        <Check className="w-4 h-4 mr-1" /> Save
+                                                        <Check className="w-3.5 h-3.5" /> {passwordSaved ? "Saved" : "Save"}
                                                     </Button>
                                                 )}
                                             </div>
@@ -403,7 +432,7 @@ export function AccessTab({ formData, updateField, addCustomQuestion }: AccessTa
                                                 <Label className="text-xs font-medium text-slate-600">Allowed Domains (Optional)</Label>
                                                 <Tooltip>
                                                     <TooltipTrigger 
-                                                        className="text-primary-600 hover:text-primary-700 transition-colors cursor-help relative z-10"
+                                                        className="text-primary-600 hover:text-primary-700 transition-colors mt-1.5 cursor-help relative z-10"
                                                         onMouseEnter={() => setIsAllowedDomainsTooltipOpen(true)}
                                                         onMouseLeave={() => setIsAllowedDomainsTooltipOpen(false)}
                                                     >
@@ -418,14 +447,36 @@ export function AccessTab({ formData, updateField, addCustomQuestion }: AccessTa
                                                     )}
                                                 </Tooltip>
                                             </div>
+                                            <div className="relative mt-2">
                                                 <Input
                                                     type="text"
                                                     placeholder="e.g. company.com, school.edu"
-                                                    value={formData.allowedDomains?.join(', ') || ""}
-                                                    onChange={(e) => updateField('allowedDomains', e.target.value.split(',').map(s => s.trim()).filter(Boolean))}
-                                                    className="h-10 border-slate-200 rounded-lg px-3 mt-2 placeholder:text-slate-400 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                                                    value={pendingAllowedDomains !== null ? pendingAllowedDomains : (formData.allowedDomains?.join(', ') || "")}
+                                                    onChange={(e) => {
+                                                        setPendingAllowedDomains(e.target.value)
+                                                        setAllowedDomainsSaved(false) // Reset saved state when typing
+                                                    }}
+                                                    className="h-10 w-full border-slate-200 rounded-lg px-3 pr-24 placeholder:text-slate-400 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                                                 />
-                                            <p className="text-xs text-slate-400">Leave empty to allow any Google account.</p>
+                                                {(pendingAllowedDomains !== null || allowedDomainsSaved) && (
+                                                    <Button
+                                                        onClick={() => {
+                                                            const domains = (pendingAllowedDomains || formData.allowedDomains?.join(', ') || "").split(',').map(s => s.trim()).filter(Boolean)
+                                                            updateField('allowedDomains', domains)
+                                                            setAllowedDomainsSaved(true)
+                                                            setPendingAllowedDomains(null)
+                                                            // Hide button after 1.5 seconds
+                                                            setTimeout(() => {
+                                                                setAllowedDomainsSaved(false)
+                                                            }, 1500)
+                                                        }}
+                                                        className="absolute right-1.5 top-1.5 h-7 px-2.5 py-1 text-xs rounded-md font-semibold transition-all shadow-sm bg-primary-600 text-white hover:bg-primary-700 flex items-center gap-1"
+                                                    >
+                                                        <Check className="w-3.5 h-3.5" /> {allowedDomainsSaved ? "Saved" : "Save"}
+                                                    </Button>
+                                                )}
+                                            </div>
+                                            <p className="text-xs text-slate-400 mt-2">Leave empty to allow any Google account.</p>
                                         </div>
                                     </div>
                                 )}

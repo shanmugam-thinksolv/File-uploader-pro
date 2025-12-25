@@ -49,6 +49,8 @@ function EditorContent() {
     const [coverUploading, setCoverUploading] = useState(false)
     const [showQrCode, setShowQrCode] = useState(false)
     const [shortenLoading, setShortenLoading] = useState(false)
+    const [shortenedUrl, setShortenedUrl] = useState<string | null>(null)
+    const [qrCopied, setQrCopied] = useState(false)
 
     const [messageModal, setMessageModal] = useState<{ isOpen: boolean; title: string; message: string; type: 'success' | 'error' }>({
         isOpen: false,
@@ -429,15 +431,36 @@ function EditorContent() {
         setTimeout(() => setCopied(false), 2000)
     }
 
-    const handleShortenUrl = () => {
+    const handleShortenUrl = async () => {
+        const currentId = (formId && formId !== 'new') ? formId : formData.id
+        if (!currentId) {
+            showMessage('Error', 'Please save the form first', 'error')
+            return
+        }
+
+        const longUrl = `${typeof window !== 'undefined' ? window.location.origin : ''}/upload/${currentId}`
         setShortenLoading(true)
-        // Mock shortening for now
-        setTimeout(() => {
+
+        try {
+            // Use TinyURL API (free, no authentication required)
+            const response = await fetch(`https://tinyurl.com/api-create.php?url=${encodeURIComponent(longUrl)}`)
+            const shortUrl = await response.text()
+            
+            if (shortUrl && shortUrl.startsWith('http')) {
+                setShortenedUrl(shortUrl)
+                navigator.clipboard.writeText(shortUrl)
+                setCopied(true)
+                setTimeout(() => setCopied(false), 2000)
+                showMessage('Success', 'URL shortened and copied to clipboard', 'success')
+            } else {
+                throw new Error('Failed to shorten URL')
+            }
+        } catch (error) {
+            console.error('Error shortening URL:', error)
+            showMessage('Error', 'Failed to shorten URL. Please try again.', 'error')
+        } finally {
             setShortenLoading(false)
-            navigator.clipboard.writeText(formId ? `${window.location.origin}/s/${formId.slice(0, 6)}` : '')
-            setCopied(true)
-            setTimeout(() => setCopied(false), 2000)
-        }, 1000)
+        }
     }
 
     const addUploadField = () => {
@@ -529,7 +552,8 @@ function EditorContent() {
                                                     Your form is ready. Share it with the world or restrict access.
                                                 </DialogDescription>
                                             </div>
-                                            <div className="flex items-center gap-3 bg-gray-50 px-4 py-2 rounded-full border border-gray-200 self-start sm:self-auto">
+                                            {/* Temporarily commented out live/inactive toggle */}
+                                            {/* <div className="flex items-center gap-3 bg-gray-50 px-4 py-2 rounded-full border border-gray-200 self-start sm:self-auto">
                                                 <div className={`w-2.5 h-2.5 rounded-full ${formData.isAcceptingResponses ? 'bg-green-500 animate-pulse' : 'bg-gray-400'}`} />
                                                 <span className="text-sm font-medium text-gray-700">
                                                     {formData.isAcceptingResponses ? 'Live' : 'Inactive'}
@@ -539,19 +563,20 @@ function EditorContent() {
                                                     onCheckedChange={(c) => updateField('isAcceptingResponses', c)}
                                                     className="ml-2 scale-90 sm:scale-100 data-[state=checked]:bg-primary-600"
                                                 />
-                                            </div>
+                                            </div> */}
                                         </div>
                                     </div>
 
                                     <div className="p-4 sm:p-8">
                                         <Tabs defaultValue="link" className="w-full">
-                                            <TabsList className="w-full mb-6 grid grid-cols-3 h-10 sm:h-12 bg-gray-100/50 p-1 rounded-xl">
+                                            <TabsList className="w-full mb-6 grid grid-cols-2 h-10 sm:h-12 bg-gray-100/50 p-1 rounded-xl">
                                                 <TabsTrigger value="link" className="rounded-lg data-[state=active]:bg-white data-[state=active]:text-primary-600 data-[state=active]:shadow-sm">
                                                     <Link2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 sm:mr-2" /> <span className="text-xs sm:text-sm">Link</span>
                                                 </TabsTrigger>
-                                                <TabsTrigger value="email" className="rounded-lg data-[state=active]:bg-white data-[state=active]:text-primary-600 data-[state=active]:shadow-sm">
+                                                {/* Temporarily commented out email tab */}
+                                                {/* <TabsTrigger value="email" className="rounded-lg data-[state=active]:bg-white data-[state=active]:text-primary-600 data-[state=active]:shadow-sm">
                                                     <Mail className="w-3.5 h-3.5 sm:w-4 sm:h-4 sm:mr-2" /> <span className="text-xs sm:text-sm">Email</span>
-                                                </TabsTrigger>
+                                                </TabsTrigger> */}
                                                 <TabsTrigger value="embed" className="rounded-lg data-[state=active]:bg-white data-[state=active]:text-primary-600 data-[state=active]:shadow-sm">
                                                     <Code className="w-3.5 h-3.5 sm:w-4 sm:h-4 sm:mr-2" /> <span className="text-xs sm:text-sm">Embed</span>
                                                 </TabsTrigger>
@@ -586,20 +611,42 @@ function EditorContent() {
                                                     </div>
                                                 </div>
 
-                                                {/* Quick Actions Grid */}
-                                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                                                    <button
-                                                        onClick={handleShortenUrl}
-                                                        className="group flex items-center gap-3 sm:gap-4 p-3 sm:p-4 rounded-xl border border-gray-200 hover:border-primary-200 hover:bg-primary-50/50 transition-all text-left"
-                                                    >
-                                                        <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-primary-100 flex items-center justify-center text-primary-600 group-hover:scale-110 transition-transform">
-                                                            {shortenLoading ? <Loader2 className="w-4 h-4 sm:w-5 sm:h-5 animate-spin" /> : <Link2 className="w-4 h-4 sm:w-5 sm:h-5" />}
-                                                        </div>
-                                                        <div>
-                                                            <div className="font-semibold text-gray-900 text-sm sm:text-base">Shorten URL</div>
-                                                            <div className="text-[10px] sm:text-xs text-gray-500 mt-0.5">Get a compact link</div>
-                                                        </div>
-                                                    </button>
+                                                {/* Quick Actions Grid - Temporarily commented out */}
+                                                {/* <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                                                    <div className="group flex flex-col gap-2 p-3 sm:p-4 rounded-xl border border-gray-200 hover:border-primary-200 hover:bg-primary-50/50 transition-all">
+                                                        <button
+                                                            onClick={handleShortenUrl}
+                                                            className="flex items-center gap-3 sm:gap-4 text-left"
+                                                        >
+                                                            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-primary-100 flex items-center justify-center text-primary-600 group-hover:scale-110 transition-transform">
+                                                                {shortenLoading ? <Loader2 className="w-4 h-4 sm:w-5 sm:h-5 animate-spin" /> : <Link2 className="w-4 h-4 sm:w-5 sm:h-5" />}
+                                                            </div>
+                                                            <div className="flex-1">
+                                                                <div className="font-semibold text-gray-900 text-sm sm:text-base">Shorten URL</div>
+                                                                <div className="text-[10px] sm:text-xs text-gray-500 mt-0.5">Get a compact link</div>
+                                                            </div>
+                                                        </button>
+                                                        {shortenedUrl && (
+                                                            <div className="flex items-center gap-2 mt-2 pt-2 border-t border-gray-100">
+                                                                <Input
+                                                                    readOnly
+                                                                    value={shortenedUrl}
+                                                                    className="flex-1 h-8 text-xs font-mono bg-gray-50 border-gray-200"
+                                                                />
+                                                                <Button
+                                                                    size="sm"
+                                                                    className="h-8 px-3"
+                                                                    onClick={() => {
+                                                                        navigator.clipboard.writeText(shortenedUrl)
+                                                                        setCopied(true)
+                                                                        setTimeout(() => setCopied(false), 2000)
+                                                                    }}
+                                                                >
+                                                                    {copied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+                                                                </Button>
+                                                            </div>
+                                                        )}
+                                                    </div>
 
                                                     <Dialog open={showQrCode} onOpenChange={setShowQrCode}>
                                                         <DialogTrigger asChild>
@@ -628,16 +675,36 @@ function EditorContent() {
                                                                     includeMargin={true}
                                                                 />
                                                             </div>
-                                                            <Button className="mt-6 sm:mt-8 w-full" onClick={() => window.print()}>
-                                                                Print QR Code
-                                                            </Button>
+                                                            <div className="flex gap-3 w-full mt-6 sm:mt-8">
+                                                                <Button 
+                                                                    variant="outline" 
+                                                                    className="flex-1" 
+                                                                    onClick={() => {
+                                                                        const currentId = (formId && formId !== 'new') ? formId : formData.id
+                                                                        const url = currentId ? `${typeof window !== 'undefined' ? window.location.origin : ''}/upload/${currentId}` : ''
+                                                                        navigator.clipboard.writeText(url)
+                                                                        setQrCopied(true)
+                                                                        setTimeout(() => setQrCopied(false), 2000)
+                                                                        showMessage('Copied', 'URL copied to clipboard', 'success')
+                                                                    }}
+                                                                >
+                                                                    {qrCopied ? (
+                                                                        <><Check className="w-4 h-4 mr-2" /> Copied</>
+                                                                    ) : (
+                                                                        <><Copy className="w-4 h-4 mr-2" /> Copy URL</>
+                                                                    )}
+                                                                </Button>
+                                                                <Button className="flex-1" onClick={() => window.print()}>
+                                                                    Print QR Code
+                                                                </Button>
+                                                            </div>
                                                         </DialogContent>
                                                     </Dialog>
-                                                </div>
+                                                </div> */}
                                             </TabsContent>
 
-                                            {/* Email Tab */}
-                                            <TabsContent value="email" className="space-y-4 sm:space-y-6">
+                                            {/* Email Tab - Temporarily commented out */}
+                                            {/* <TabsContent value="email" className="space-y-4 sm:space-y-6">
                                                 <div className="space-y-4">
                                                     <div className="space-y-2">
                                                         <Label className="text-sm">Subject Line</Label>
@@ -691,7 +758,7 @@ function EditorContent() {
                                                         <Send className="w-4 h-4 mr-2" /> Open Email
                                                     </Button>
                                                 </div>
-                                            </TabsContent>
+                                            </TabsContent> */}
 
                                             {/* Embed Tab */}
                                             <TabsContent value="embed" className="space-y-4 sm:space-y-6">
@@ -716,9 +783,18 @@ function EditorContent() {
                                                                     className="h-8 bg-white text-primary-600 hover:bg-gray-100 font-medium text-xs"
                                                                     onClick={() => {
                                                                         const currentId = (formId && formId !== 'new') ? formId : formData.id
-                                                                        const code = `<iframe src="${window.location.origin}/upload/${currentId}" width="100%" height="800px" style="border:0; border-radius: 8px; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);"></iframe>`
-                                                                        navigator.clipboard.writeText(code)
-                                                                        showMessage('Copied', 'Embed code copied to clipboard', 'success')
+                                                                        if (!currentId) {
+                                                                            showMessage('Error', 'Please save the form first', 'error')
+                                                                            return
+                                                                        }
+                                                                        const origin = typeof window !== 'undefined' ? window.location.origin : ''
+                                                                        const code = `<iframe src="${origin}/upload/${currentId}" width="100%" height="800px" style="border:0; border-radius: 8px; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);"></iframe>`
+                                                                        navigator.clipboard.writeText(code).then(() => {
+                                                                            showMessage('Copied', 'Embed code copied to clipboard', 'success')
+                                                                        }).catch((err) => {
+                                                                            console.error('Failed to copy:', err)
+                                                                            showMessage('Error', 'Failed to copy embed code', 'error')
+                                                                        })
                                                                     }}
                                                                 >
                                                                     <Copy className="w-3.5 h-3.5 mr-2" /> Copy Code
@@ -730,9 +806,9 @@ function EditorContent() {
                                             </TabsContent>
                                         </Tabs>
 
-                                        <div className="my-6 border-t border-gray-100"></div>
+                                        {/* Temporarily commented out "Who can respond?" section */}
+                                        {/* <div className="my-6 border-t border-gray-100"></div>
 
-                                        {/* Access Control */}
                                         <div className="space-y-4">
                                             <Label className="text-xs sm:text-sm font-semibold text-gray-900 uppercase tracking-wide">Who can respond?</Label>
 
@@ -793,7 +869,7 @@ function EditorContent() {
                                                     </div>
                                                 </div>
                                             )}
-                                        </div>
+                                        </div> */}
                                     </div>
 
                                     {/* Footer Actions */}

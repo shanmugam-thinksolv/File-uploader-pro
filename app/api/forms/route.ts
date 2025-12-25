@@ -38,7 +38,7 @@ export async function POST(request: Request) {
             'allowedEmails', 'emailFieldControl', 'enableMetadataSpreadsheet',
             'enableResponseSheet', 'responseSheetId',
             'subfolderOrganization', 'customSubfolderField', 'enableSmartGrouping',
-            'uploadFields', 'customQuestions'
+            'uploadFields', 'customQuestions', 'allowedDomains'
         ];
 
         // Filter body to only include allowed fields (skip undefined values)
@@ -55,14 +55,20 @@ export async function POST(request: Request) {
         if (body.accessProtectionType !== undefined) {
             if (body.accessProtectionType === 'PASSWORD') {
                 createData.isPasswordProtected = true;
+                createData.accessLevel = 'ANYONE';
                 // Handle empty password strings
                 if (createData.password === '' || createData.password === null || createData.password === undefined) {
                     createData.password = null;
                 }
-            } else {
-                // PUBLIC or GOOGLE - no password protection
+            } else if (body.accessProtectionType === 'GOOGLE') {
                 createData.isPasswordProtected = false;
                 createData.password = null;
+                createData.accessLevel = 'INVITED';
+            } else {
+                // PUBLIC
+                createData.isPasswordProtected = false;
+                createData.password = null;
+                createData.accessLevel = 'ANYONE';
             }
         } else if (createData.password && createData.password.trim() !== '') {
             // If password is provided but accessProtectionType wasn't, assume password protection
@@ -193,20 +199,38 @@ export async function GET() {
         }
 
         // Then fetch all forms (already updated)
-        // Handle connection pooling issues gracefully
-        let forms;
+        // Use raw SQL to fetch all forms to ensure all fields are retrieved correctly,
+        // even if Prisma client is out of sync.
+        let forms: any[];
         try {
-            forms = await prisma.form.findMany({
-                where: {
-                    userId: session.user.id
-                },
-                orderBy: { createdAt: 'desc' },
-                include: {
-                    _count: {
-                        select: { submissions: true }
-                    }
-                }
-            } as any);
+            forms = await prisma.$queryRawUnsafe<any[]>(
+                `SELECT f.*, 
+                (SELECT count(*)::int FROM "Submission" s WHERE s."formId" = f.id) as "submissionCount"
+                FROM "Form" f 
+                WHERE f."userId" = $1 
+                ORDER BY f."createdAt" DESC`,
+                session.user.id
+            );
+            
+            // Map submissionCount to the structure the frontend expects
+            // and handle PostgreSQL lowercase column naming
+            forms = forms.map(f => {
+                const getField = (obj: any, field: string) => obj[field] !== undefined ? obj[field] : obj[field.toLowerCase()];
+                
+                const normalized: any = {
+                    id: getField(f, 'id'),
+                    title: getField(f, 'title'),
+                    isPublished: getField(f, 'isPublished'),
+                    isAcceptingResponses: getField(f, 'isAcceptingResponses'),
+                    expiryDate: getField(f, 'expiryDate'),
+                    type: getField(f, 'type'),
+                    accessLevel: getField(f, 'accessLevel'),
+                    allowedDomains: getField(f, 'allowedDomains'),
+                    createdAt: getField(f, 'createdAt'),
+                    _count: { submissions: f.submissionCount || f.submissioncount || 0 }
+                };
+                return normalized;
+            });
             
             // Calculate and update type for each form (update all, including NULL values)
             const updatePromises = forms.map(async (form: any) => {

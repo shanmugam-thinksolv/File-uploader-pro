@@ -196,7 +196,7 @@ export function GeneralStep({ formData, updateField, addCustomQuestion, removeCu
                                 id="title"
                                 value={formData.title}
                                 onChange={(e) => updateField('title', e.target.value)}
-                                className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all duration-200"
+                                className="w-full px-4 py-3 rounded-xl border border-slate-200 lg:mt-2 bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all duration-200"
                                 placeholder="Untitled Form"
                             />
                         </div>
@@ -204,7 +204,7 @@ export function GeneralStep({ formData, updateField, addCustomQuestion, removeCu
                             <Label htmlFor="description" className="text-sm font-medium text-slate-700">Description</Label>
                             <Textarea
                                 id="description"
-                                className="min-h-[100px] md:min-h-[120px] resize-y w-full px-4 py-3 rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all duration-200"
+                                className="min-h-[100px] md:min-h-[120px] lg:mt-2 resize-y w-full px-4 py-3 rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all duration-200"
                                 placeholder="e.g., Instructions or details for people uploading files."
                                 value={formData.description || ''}
                                 onChange={(e) => updateField('description', e.target.value)}
