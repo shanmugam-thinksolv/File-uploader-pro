@@ -237,45 +237,4 @@ export async function POST(request: Request) {
     }
 }
 
-            fileName: originalFileName, // Original filename (same as what was uploaded)
-            fileType: file.type,
-
-            fileSize: Number(driveFile.size),
-            fieldId: fieldId // Echo back the fieldId for response sheet matching
-        });
-
-
-
-    } catch (error: any) {
-
-        console.error('Error uploading file to Drive:', error);
-
-
-
-        if (error.code === 401 || (error.message && error.message.includes('invalid authentication credentials'))) {
-
-            return NextResponse.json(
-
-                { error: 'Authentication failed', details: 'The form owner needs to sign in again to refresh permissions.' },
-
-                { status: 401 }
-
-            );
-
-        }
-
-
-
-        return NextResponse.json(
-
-            { error: 'Failed to upload file', details: error.message },
-
-            { status: 500 }
-
-        );
-
-    }
-
-}
-
 

@@ -21,6 +21,7 @@ function UploadsContent() {
     const [selectedFormId, setSelectedFormId] = useState(formIdParam || 'all')
     const [searchQuery, setSearchQuery] = useState('')
     const [exportLoading, setExportLoading] = useState(false)
+    const [selectKey, setSelectKey] = useState(0) // Key to force Select reset
 
     // Fetch forms once on mount
     useEffect(() => {
@@ -123,11 +124,34 @@ function UploadsContent() {
             ].join(','))
         ].join('\n')
 
+        // Get form name from selected form or from submissions
+        let formName = 'All Forms'
+        if (selectedFormId !== 'all') {
+            const selectedForm = forms.find((f: any) => f.id === selectedFormId)
+            formName = selectedForm?.title || 'Unknown Form'
+        } else if (filteredSubmissions.length > 0) {
+            // Check if all submissions are from the same form
+            const uniqueForms = new Set(filteredSubmissions.map((sub: any) => sub.form?.title).filter(Boolean))
+            if (uniqueForms.size === 1) {
+                formName = filteredSubmissions[0].form?.title || 'Unknown Form'
+            }
+        }
+        
+        // Format date for filename (DD/MM/YYYY format)
+        const exportDate = new Date().toLocaleDateString('en-GB', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric'
+        }).replace(/\//g, '-') // Replace slashes with dashes for filename
+        
+        // Create filename: "[Form Name] Exports - [Date].csv"
+        const filename = `${formName} Exports - ${exportDate}.csv`
+
         const blob = new Blob([csvContent], { type: 'text/csv' })
         const url = window.URL.createObjectURL(blob)
         const a = document.createElement('a')
         a.href = url
-        a.download = `uploads-${new Date().toISOString().split('T')[0]}.csv`
+        a.download = filename
         document.body.appendChild(a)
         a.click()
         document.body.removeChild(a)
@@ -141,8 +165,17 @@ function UploadsContent() {
         }
 
         setExportLoading(true)
+        const startTime = Date.now()
+        
         try {
             const formId = selectedFormId !== 'all' ? selectedFormId : null
+            
+            // Show progress message for large exports
+            const submissionCount = filteredSubmissions.length;
+            if (submissionCount > 100) {
+                console.log(`Exporting ${submissionCount} submissions using optimized Batch Write API...`);
+            }
+            
             const res = await fetch('/api/export/google-sheet', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -154,7 +187,8 @@ function UploadsContent() {
                         submitterEmail: sub.submitterEmail,
                         formTitle: sub.form?.title || 'Unknown',
                         fileSize: sub.fileSize,
-                        submittedAt: sub.submittedAt,
+                        submittedAt: sub.submittedAt || sub.createdAt, // Use createdAt as fallback
+                        createdAt: sub.createdAt, // Also send createdAt explicitly
                         fileUrl: sub.fileUrl
                     }))
                 })
@@ -166,7 +200,17 @@ function UploadsContent() {
             }
 
             const data = await res.json()
+            const totalTime = Date.now() - startTime
+            
+            console.log(`✅ Export completed in ${totalTime}ms (${submissionCount} rows)`)
+            console.log(`📊 Server processing: ${data.exportTime}ms`)
+            console.log(`🌐 Network overhead: ${totalTime - data.exportTime}ms`)
+            
             if (data.sheetUrl) {
+                // Show success message with timing
+                if (submissionCount > 100) {
+                    alert(`Export successful! ✅\n${submissionCount} rows exported in ${(totalTime / 1000).toFixed(1)}s\nOpening spreadsheet...`)
+                }
                 window.open(data.sheetUrl, '_blank')
             } else {
                 alert('Google Sheet created successfully!')
@@ -204,17 +248,28 @@ function UploadsContent() {
                 </div>
                 <div className="flex items-center gap-2">
                     <Select
-                        value={exportLoading ? "" : undefined}
+                        key={selectKey}
                         onValueChange={(value) => {
                             if (value === 'csv' || value === 'google-sheet') {
                                 handleExport(value)
+                                // Reset select by changing key to force remount
+                                setSelectKey(prev => prev + 1)
                             }
                         }}
                         disabled={filteredSubmissions.length === 0 || exportLoading}
                     >
-                        <SelectTrigger className="w-full sm:w-[150px] h-10">
-                            <Download className="w-4 h-4 mr-2" />
-                            <SelectValue placeholder={exportLoading ? "Exporting..." : "Export"} />
+                        <SelectTrigger className="w-full sm:w-[180px] h-10">
+                            {exportLoading ? (
+                                <>
+                                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                    <SelectValue placeholder="Exporting..." />
+                                </>
+                            ) : (
+                                <>
+                                    <Download className="w-4 h-4 mr-2" />
+                                    <SelectValue placeholder="Export" />
+                                </>
+                            )}
                         </SelectTrigger>
                         <SelectContent>
                             <SelectItem value="csv">
@@ -239,7 +294,11 @@ function UploadsContent() {
                 <CardContent className="p-4">
                     <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
                         <div className="w-full sm:w-[180px]">
+                            <label htmlFor="form-filter" className="block text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">
+                                Filter by Form Names
+                            </label>
                             <select
+                                id="form-filter"
                                 value={selectedFormId}
                                 onChange={(e) => setSelectedFormId(e.target.value)}
                                 className="flex h-11 sm:h-10 w-full items-center justify-between rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 disabled:cursor-not-allowed disabled:opacity-50 transition-all shadow-sm"
@@ -252,13 +311,19 @@ function UploadsContent() {
                         </div>
                         
                         <div className="flex-1 relative">
-                            <Search className="absolute left-3 top-3.5 sm:top-3 h-4 w-4 text-muted-foreground" />
-                            <Input
-                                placeholder="Search files, uploaders..."
-                                className="pl-10 h-11 sm:h-10 rounded-xl bg-gray-50/50 focus:bg-white transition-all border-gray-200"
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                            />
+                            <label htmlFor="search-input" className="block text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">
+                                Search Files
+                            </label>
+                            <div className="relative">
+                                <Search className="absolute left-3 top-3.5 sm:top-3 h-4 w-4 text-muted-foreground" />
+                                <Input
+                                    id="search-input"
+                                    placeholder="Search files, uploaders..."
+                                    className="pl-10 h-11 sm:h-10 rounded-xl bg-gray-50/50 focus:bg-white transition-all border-gray-200"
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                />
+                            </div>
                         </div>
                     </div>
                 </CardContent>
