@@ -263,12 +263,20 @@ export async function POST(request: Request) {
         // If response sheet is enabled, sync files to response sheet
         if (formData.enableResponseSheet && formData.userId) {
             try {
+                console.log('[Submit] Response sheet enabled, preparing to sync...');
+                
                 // Parse upload fields to get field labels
                 let uploadFields: Array<{ id: string; label: string }> = [];
                 if (formData.uploadFields) {
-                    uploadFields = typeof formData.uploadFields === 'string' 
-                        ? JSON.parse(formData.uploadFields) 
-                        : formData.uploadFields;
+                    try {
+                        uploadFields = typeof formData.uploadFields === 'string' 
+                            ? JSON.parse(formData.uploadFields) 
+                            : formData.uploadFields;
+                        console.log('[Submit] Parsed upload fields:', uploadFields);
+                    } catch (parseError) {
+                        console.error('[Submit] Error parsing uploadFields:', parseError);
+                        uploadFields = [];
+                    }
                 }
 
                 // Prepare files with field labels
@@ -282,31 +290,44 @@ export async function POST(request: Request) {
                         name: file.name,
                         size: file.size,
                         fieldId: file.fieldId,
-                        fieldLabel: field?.label || 'Unknown',
+                        fieldLabel: field?.label || file.label || 'Unknown',
                         uploadType: uploadType as 'file' | 'folder',
                         folderName: file.folderName || '',
                         relativePath: relativePath
                     };
                 });
 
+                console.log('[Submit] Files prepared for sync:', filesForSync);
+
                 const firstSubmissionId = submissions[0]?.id || '';
                 
-                await syncFilesToResponseSheet(
-                    formData.userId,
-                    formId,
-                    formData.title || 'Untitled Form',
-                    firstSubmissionId,
-                    {
-                        timestamp: new Date().toISOString(),
-                        submitterEmail: finalSubmitterEmail || null,
-                        files: filesForSync
-                    }
-                );
+                if (!firstSubmissionId) {
+                    console.error('[Submit] No submission ID available for response sheet sync');
+                } else if (filesForSync.length === 0) {
+                    console.error('[Submit] No files to sync to response sheet');
+                } else {
+                    const spreadsheetId = await syncFilesToResponseSheet(
+                        formData.userId,
+                        formId,
+                        formData.title || 'Untitled Form',
+                        firstSubmissionId,
+                        {
+                            timestamp: new Date().toISOString(),
+                            submitterEmail: finalSubmitterEmail || null,
+                            files: filesForSync
+                        }
+                    );
 
-                console.log(`[Submit] Synced ${filesForSync.length} file(s) to response sheet`);
+                    console.log(`[Submit] Successfully synced ${filesForSync.length} file(s) to response sheet: ${spreadsheetId}`);
+                }
             } catch (syncError: any) {
                 // Log error but don't fail the submission
                 console.error('[Submit] Failed to sync to response sheet:', syncError);
+                console.error('[Submit] Error details:', {
+                    message: syncError.message,
+                    code: syncError.code,
+                    stack: syncError.stack
+                });
                 
                 if (syncError.message?.includes('PERMISSION_ERROR')) {
                     console.error('[Submit] Response sheet permission error - user may need to reconnect Google account');

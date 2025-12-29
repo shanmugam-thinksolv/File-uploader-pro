@@ -10,6 +10,13 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog"
 import { Loader2, UploadCloud, CheckCircle, Lock, RefreshCcw, AlertCircle, Trash2, Folder, X } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { BsFileEarmarkPdf, BsFileEarmarkWord, BsFileEarmarkExcel, BsImage, BsFileEarmarkPlay, BsFileEarmarkMusic, BsFileEarmarkZip, BsFileEarmarkText } from "react-icons/bs"
@@ -32,6 +39,7 @@ interface UploadField {
     required?: boolean
     allowMultiple?: boolean
     allowFolder?: boolean
+    maxFileSize?: number // File size limit in MB
 }
 
 interface CustomQuestion {
@@ -203,7 +211,7 @@ const FileDropzone = ({
 
     const getFileIcon = (file: File) => {
         const type = file.type
-        const style = { color: 'rgb(79, 70, 229)' }
+        const style = { color: primaryColor }
         const className = "w-8 h-8"
 
         if (type.includes('image')) return <BsImage style={style} className={className} />
@@ -524,6 +532,8 @@ export default function UploadForm({ isPreview = false, formId, initialData, for
     const [questionErrors, setQuestionErrors] = useState<Record<string, string>>({})
     const [uploading, setUploading] = useState(false)
     const [uploadProgress, setUploadProgress] = useState<Record<string, Record<number, number>>>({})
+    const [showErrorModal, setShowErrorModal] = useState(false)
+    const [rejectedFilesData, setRejectedFilesData] = useState<{ files: Array<{ name: string; size: number }>, maxSizeMB: number } | null>(null)
     
     // Folder viewer state
     const [viewingFolder, setViewingFolder] = useState<{ fieldId: string; folderName: string } | null>(null)
@@ -666,43 +676,65 @@ export default function UploadForm({ isPreview = false, formId, initialData, for
     }
 
     const handleFileDrop = (fieldId: string, newFiles: File[], isFromFolder: boolean = false) => {
-        setFiles(prev => {
-            const fieldConfig = config?.uploadFields?.find(f => f.id === fieldId) as UploadField | undefined
-            const allowMultiple = fieldConfig?.allowMultiple !== false
+        const fieldConfig = config?.uploadFields?.find(f => f.id === fieldId) as UploadField | undefined
+        const allowMultiple = fieldConfig?.allowMultiple !== false
+        const maxFileSizeMB = fieldConfig?.maxFileSize
+        const maxFileSizeBytes = maxFileSizeMB ? maxFileSizeMB * 1024 * 1024 : undefined
 
-            const existingFiles = allowMultiple ? (prev[fieldId] || []) : []
-            // Add new files (duplicates are now allowed)
-            const updatedFiles: FileWithMetadata[] = [...existingFiles]
-            newFiles.forEach(newFile => {
-                if (!allowMultiple && updatedFiles.length >= 1) {
-                    return
+        const rejectedFiles: Array<{ name: string; size: number }> = []
+        const validFiles: FileWithMetadata[] = []
+
+        newFiles.forEach((newFile) => {
+            // Check file size limit
+            if (maxFileSizeBytes && newFile.size > maxFileSizeBytes) {
+                rejectedFiles.push({ name: newFile.name, size: newFile.size })
+                return
+            }
+
+            // Mark file with metadata indicating if it came from a folder
+            const fileWithMetadata = newFile as FileWithMetadata
+            
+            // Set _isFromFolder based ONLY on the isFromFolder parameter passed from FileDropzone
+            // This is the single source of truth for folder detection
+            fileWithMetadata._isFromFolder = isFromFolder
+            
+            // If from folder, extract folder name from webkitRelativePath (first part of path)
+            if (isFromFolder && 'webkitRelativePath' in newFile) {
+                const relativePath = (newFile as any).webkitRelativePath as string
+                if (relativePath) {
+                    const pathParts = relativePath.split('/')
+                    fileWithMetadata._folderName = pathParts[0] || 'Unknown Folder'
                 }
-                
-                // Mark file with metadata indicating if it came from a folder
-                const fileWithMetadata = newFile as FileWithMetadata
-                
-                // Set _isFromFolder based ONLY on the isFromFolder parameter passed from FileDropzone
-                // This is the single source of truth for folder detection
-                fileWithMetadata._isFromFolder = isFromFolder
-                
-                // If from folder, extract folder name from webkitRelativePath (first part of path)
-                if (isFromFolder && 'webkitRelativePath' in newFile) {
-                    const relativePath = (newFile as any).webkitRelativePath as string
-                    if (relativePath) {
-                        const pathParts = relativePath.split('/')
-                        fileWithMetadata._folderName = pathParts[0] || 'Unknown Folder'
-                    }
-                }
-                
-                updatedFiles.push(fileWithMetadata)
-            })
-            return { ...prev, [fieldId]: updatedFiles }
+            }
+            
+            validFiles.push(fileWithMetadata)
         })
-        // Clear errors for this field when new files are added
-        setFileErrors(prev => {
-            const next = { ...prev }
-            delete next[fieldId]
-            return next
+
+        // Show error message for rejected files
+        if (rejectedFiles.length > 0 && maxFileSizeMB) {
+            // Store rejected files data for structured display in modal
+            setRejectedFilesData({
+                files: rejectedFiles.map(f => ({
+                    name: f.name.split('/').pop() || f.name,
+                    size: f.size
+                })),
+                maxSizeMB: maxFileSizeMB
+            })
+            setShowErrorModal(true)
+        }
+
+        setFiles(prev => {
+            const existingFiles = allowMultiple ? (prev[fieldId] || []) : []
+            
+            // If not allowing multiple and we already have a file, don't add new ones
+            if (!allowMultiple && existingFiles.length >= 1) {
+                return prev
+            }
+
+            // Add only valid files
+            const updatedFiles: FileWithMetadata[] = [...existingFiles, ...validFiles]
+            
+            return { ...prev, [fieldId]: updatedFiles }
         })
     }
 
@@ -1131,13 +1163,6 @@ export default function UploadForm({ isPreview = false, formId, initialData, for
                 </div>
             )}
 
-            {config?.logoUrl && (
-                <div className="flex justify-center mb-6">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={config.logoUrl} alt="Form logo" className="h-12 sm:h-16 md:h-20 object-contain" />
-                </div>
-            )}
-
             {step === 'auth' && (
                 <Card className={cn(cardClasses, "border-0 sm:border")}>
                     <CardHeader className="text-center px-4 sm:px-6">
@@ -1240,8 +1265,19 @@ export default function UploadForm({ isPreview = false, formId, initialData, for
             )}
 
             {step === 'form' && (
-                <Card className={cn(cardClasses, "border-0 sm:border")}>
+                <Card 
+                    className={cn(cardClasses, "border-0 sm:border")}
+                    style={{
+                        backgroundColor: config?.backgroundColor || '#ffffff'
+                    }}
+                >
                     <CardHeader className="px-4 sm:px-6">
+                        {config?.logoUrl && (
+                            <div className="flex justify-center mb-4">
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img src={config.logoUrl} alt="Form logo" className="h-12 sm:h-16 md:h-20 object-contain" />
+                            </div>
+                        )}
                         <CardTitle className="text-xl sm:text-2xl">{config?.title || "File Upload"}</CardTitle>
                         <CardDescription className="text-sm sm:text-base">{config?.description || "Please fill in your details and upload your file."}</CardDescription>
                     </CardHeader>
@@ -1564,13 +1600,14 @@ export default function UploadForm({ isPreview = false, formId, initialData, for
                 
                 const getFileIcon = (file: File) => {
                     const type = file.type
-                    const className = "w-6 h-6 text-blue-600"
+                  
+                    const className = "w-6 h-6 text-primary-600"
                     
                     if (type.includes('image')) return <BsImage className={className} />
                     if (type.includes('pdf')) return <BsFileEarmarkPdf className={className} />
                     if (type.includes('word')) return <BsFileEarmarkWord className={className} />
                     if (type.includes('excel') || type.includes('spreadsheet')) return <BsFileEarmarkExcel className={className} />
-                    return <BsFileEarmarkText className={className} />
+                    return <BsFileEarmarkText  className={className} />
                 }
                 
                 return (
@@ -1626,6 +1663,49 @@ export default function UploadForm({ isPreview = false, formId, initialData, for
                     </div>
                 )
             })()}
+            
+            {/* Error Modal */}
+            <Dialog open={showErrorModal} onOpenChange={setShowErrorModal}>
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <div className="flex items-center gap-3 mb-4">
+                            <div className="p-2 bg-red-100 rounded-full">
+                                <AlertCircle className="w-6 h-6 text-red-600" />
+                            </div>
+                            <DialogTitle className="text-xl font-bold text-gray-900">File Size Exceeded</DialogTitle>
+                        </div>
+                        {rejectedFilesData && (
+                            <div className="space-y-4">
+                                <DialogDescription className="text-base font-semibold text-gray-700">
+                                    {rejectedFilesData.files.length} file(s) Rejected:
+                                </DialogDescription>
+                                <div className="space-y-2 pl-4">
+                                    {rejectedFilesData.files.map((file, index) => (
+                                        <div key={index} className="text-sm text-gray-600 flex items-start gap-2">
+                                            <span className="text-red-500">•</span>
+                                            <span className="flex-1 break-words">{file.name}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                                <DialogDescription className="text-sm text-gray-600 pt-2">
+                                    File(s) size exceeds the maximum limit of {rejectedFilesData.maxSizeMB} MB.
+                                </DialogDescription>
+                            </div>
+                        )}
+                    </DialogHeader>
+                    <div className="flex justify-end gap-3">
+                        <Button 
+                            onClick={() => {
+                                setShowErrorModal(false)
+                                setRejectedFilesData(null)
+                            }}
+                            className="px-6 hover:opacity-90 transition-opacity"
+                        >
+                            OK
+                        </Button>
+                    </div>
+                </DialogContent>
+            </Dialog>
         </div>
     )
 }

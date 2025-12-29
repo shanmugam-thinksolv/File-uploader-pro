@@ -47,9 +47,10 @@ export async function getOrCreateLiveSyncSheet(
             throw new Error('Failed to create spreadsheet');
         }
         
-        // Get the first sheet ID
+        // Get the first sheet ID and name
         const firstSheet = spreadsheet.data.sheets?.[0];
         const sheetId = firstSheet?.properties?.sheetId ?? 0;
+        const sheetName = firstSheet?.properties?.title || 'Sheet1';
 
         // Set up headers - flat row structure
         const headers = [
@@ -65,9 +66,11 @@ export async function getOrCreateLiveSyncSheet(
             'Uploader Email'
         ];
 
+        console.log(`[Live Sync] Setting up headers in sheet: ${sheetName}`);
+
         await sheets.spreadsheets.values.update({
             spreadsheetId,
-            range: 'Sheet1!A1',
+            range: `${sheetName}!A1`,
             valueInputOption: 'RAW',
             requestBody: {
                 values: [headers]
@@ -178,44 +181,72 @@ export async function syncFilesToResponseSheet(
             return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
         };
         
+        // Get the sheet name from the spreadsheet
+        const spreadsheetInfo = await sheets.spreadsheets.get({
+            spreadsheetId
+        });
+        const sheetName = spreadsheetInfo.data.sheets?.[0]?.properties?.title || 'Sheet1';
+        
+        console.log(`[Live Sync] Using sheet name: ${sheetName}`);
+        
         // Get current row count to know where to insert
         const sheetData = await sheets.spreadsheets.values.get({
             spreadsheetId,
-            range: 'Sheet1!A:A'
+            range: `${sheetName}!A:A`
         });
         const currentRowCount = sheetData.data.values ? sheetData.data.values.length : 1;
         const newRowIndex = currentRowCount; // Row index (0-based, but we're appending after header)
         
+        console.log(`[Live Sync] Current row count: ${currentRowCount}, will insert at index: ${newRowIndex}`);
+        
+        // Validate files array
+        if (!submissionData.files || submissionData.files.length === 0) {
+            throw new Error('No files provided for response sheet sync');
+        }
+
+        console.log(`[Live Sync] Preparing ${submissionData.files.length} file(s) for sync`);
+
         // Create ONE ROW PER FILE (flat structure)
-        const rows = submissionData.files.map(file => {
+        const rows = submissionData.files.map((file, index) => {
             const uploadType = file.uploadType === 'folder' ? 'folder' : 'file';
             const folderName = file.folderName || '';
             const relativePath = file.relativePath || file.name; // Default to file name if no path
             
-            return [
+            const row = [
                 submissionId,                                  // Submission ID
                 formattedDateTime,                            // Uploaded At
                 uploadType,                                   // Upload Type (file | folder)
                 folderName,                                   // Folder Name
                 relativePath,                                 // Relative Path
-                file.name,                                    // File Name
-                formatSize(file.size),                        // File Size
-                file.url,                                     // File URL (will be clickable)
+                file.name || 'Unknown',                       // File Name
+                formatSize(file.size || 0),                   // File Size
+                file.url || '',                               // File URL (will be clickable)
                 file.fieldLabel || 'Unknown',                 // Field Name
                 submissionData.submitterEmail || 'Anonymous'  // Uploader Email
             ];
+            
+            console.log(`[Live Sync] Row ${index + 1}:`, row);
+            return row;
         });
+        
+        console.log(`[Live Sync] Appending ${rows.length} row(s) to sheet ${spreadsheetId}`);
         
         // Append all rows at once
         // Use USER_ENTERED so Google Sheets auto-detects URLs and makes them clickable
-        await sheets.spreadsheets.values.append({
+        const appendResponse = await sheets.spreadsheets.values.append({
             spreadsheetId,
-            range: 'Sheet1!A:J',
+            range: `${sheetName}!A:J`,
             valueInputOption: 'USER_ENTERED',
             insertDataOption: 'INSERT_ROWS',
             requestBody: {
                 values: rows
             }
+        });
+        
+        console.log(`[Live Sync] Append response:`, {
+            updatedCells: appendResponse.data.updates?.updatedCells,
+            updatedRange: appendResponse.data.updates?.updatedRange,
+            updatedRows: appendResponse.data.updates?.updatedRows
         });
         
         // Get the sheet ID

@@ -127,12 +127,7 @@ export default async function UploadPage({ params }: { params: Promise<{ formId:
     }
 
     return (
-        <div
-            className="min-h-screen py-12 flex flex-col"
-            style={{
-                backgroundColor: parsedForm.backgroundColor
-            }}
-        >
+        <div className="min-h-screen py-12 flex flex-col bg-gray-50">
             <div className="flex-grow">
                 <UploadForm formId={formId} initialData={parsedForm as any} formOwnerId={formData.userId} />
             </div>

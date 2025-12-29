@@ -59,6 +59,7 @@ export interface UploadField {
     required: boolean;
     allowMultiple?: boolean;
     allowFolder?: boolean;
+    maxFileSize?: number; // File size limit in MB
 }
 
 export interface CustomQuestion {

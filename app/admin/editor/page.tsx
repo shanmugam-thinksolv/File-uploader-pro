@@ -24,13 +24,11 @@ import {
     DialogTrigger,
 } from "@/components/ui/dialog"
 import { QRCodeCanvas } from "qrcode.react"
-import { AccessTab } from './components/steps/AccessStep';
-import { TabTransition } from './components/TabTransition';
-import { GeneralStep } from './components/steps/GeneralStep';
-import { UploadsStep } from './components/steps/UploadsStep';
-import { OrganizationStep } from './components/steps/OrganizationStep';
-import { DesignStep } from './components/steps/DesignStep';
+import { AccessStep } from './components/steps/AccessStep';
+import { SetupStep } from './components/steps/SetupStep';
+import { RulesStep } from './components/steps/RulesStep';
 import { EditorFormData, UploadField, CustomQuestion } from './types';
+import UploadForm from '@/components/upload-form';
 
 
 function EditorContent() {
@@ -189,11 +187,12 @@ function EditorContent() {
                 if (prev.uploadFields.length === 0 && prev.customQuestions.length === 0) {
                     const defaultUploadField: UploadField = {
                         id: crypto.randomUUID(),
-                        label: "Untitled Field",
+                        label: "",
                         allowedTypes: "any",
                         required: true, // First field is required by default
                         allowMultiple: true,
                         allowFolder: false,
+                        maxFileSize: undefined, // No limit by default
                     }
                     const defaultQuestion: CustomQuestion = {
                         id: crypto.randomUUID(),
@@ -256,14 +255,16 @@ function EditorContent() {
         window.scrollTo({ top: 0, behavior: 'smooth' })
     }, [currentStep])
 
-    const handleSave = async (shouldPublish: boolean = false) => {
-        setLoading(true)
+    const handleSave = async (shouldPublish: boolean = false, skipLoading: boolean = false) => {
+        if (!skipLoading) {
+            setLoading(true)
+        }
         try {
             const method = formId && formId !== 'new' ? 'PUT' : 'POST'
             const url = formId && formId !== 'new' ? `/api/forms/${formId}` : '/api/forms'
 
             // If publishing, set isPublished to true
-            const dataToSave = shouldPublish 
+            const dataToSave = shouldPublish
                 ? { ...formData, isPublished: true }
                 : formData
 
@@ -292,12 +293,12 @@ function EditorContent() {
                 if (method === 'POST' && !shouldPublish) {
                     // Update formData with the new ID so it's available in the UI
                     setFormData(prev => ({ ...prev, id: data.id }))
-                    
+
                     // Update URL with the new ID
                     const params = new URLSearchParams(searchParams.toString())
                     params.set('id', data.id)
                     router.replace(`${window.location.pathname}?${params.toString()}`)
-                    
+
                     // Return the new ID so the caller can use it
                     return data.id
                 }
@@ -305,11 +306,11 @@ function EditorContent() {
                 // Redirect to dashboard for:
                 // 1. Publishing (new or existing form)
                 // 2. Explicitly saving an existing form as draft (not auto-save)
-                if (!isSaving) {
+                if (!isSaving && !skipLoading) {
                     router.refresh()
                     router.push('/admin/dashboard')
                 }
-                
+
                 return data.id
             } else {
                 const errorData = await res.json()
@@ -321,7 +322,9 @@ function EditorContent() {
             showMessage('Error', 'Failed to save form', 'error')
             return null
         } finally {
-            setLoading(false)
+            if (!skipLoading) {
+                setLoading(false)
+            }
         }
     }
 
@@ -445,7 +448,7 @@ function EditorContent() {
             // Use TinyURL API (free, no authentication required)
             const response = await fetch(`https://tinyurl.com/api-create.php?url=${encodeURIComponent(longUrl)}`)
             const shortUrl = await response.text()
-            
+
             if (shortUrl && shortUrl.startsWith('http')) {
                 setShortenedUrl(shortUrl)
                 navigator.clipboard.writeText(shortUrl)
@@ -467,11 +470,12 @@ function EditorContent() {
         if (formData.uploadFields.length >= 3) return
         const newField = {
             id: crypto.randomUUID(),
-            label: "Untitled Field",
+            label: "",
             allowedTypes: "any",
             required: formData.uploadFields.length === 0, // First field is required by default, others are not
             allowMultiple: true, // Checked by default
             allowFolder: false, // Unchecked by default
+            maxFileSize: undefined, // No limit by default
         }
         updateField('uploadFields', [...formData.uploadFields, newField])
     }
@@ -512,31 +516,7 @@ function EditorContent() {
 
     return (
         <div className="min-h-screen bg-slate-50">
-            {/* Fixed Top Bar */}
-            <div className="sticky top-0 z-[40] bg-white border-b border-gray-200 shadow-sm">
-                <div className="mx-auto px-4 sm:px-6 py-3 sm:py-4 max-w-[1600px]">
-                    <div className="flex items-center justify-between gap-4">
-                        <div className="flex items-center gap-3 sm:gap-6 min-w-0">
-                            <h1 className="text-lg sm:text-2xl font-bold text-gray-900 truncate">{formData.title}</h1>
-                        </div>
-                        <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
-                            <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-gradient-to-r from-primary-50 to-purple-50 rounded-full border border-primary-100">
-                                <div className="w-2 h-2 rounded-full bg-primary-500 animate-pulse"></div>
-                                <span className="text-xs font-medium text-primary-700">
-                                    {isSaving ? 'Auto-saving...' : 'All changes saved'}
-                                </span>
-                            </div>
-                            <Button
-                                variant="outline"
-                                onClick={() => handleSave(false)}
-                                disabled={loading}
-                                className="h-9 sm:h-10 px-3 sm:px-6 font-medium border-gray-300 hover:border-primary-300 hover:bg-primary-50/50 transition-all shadow-sm hover:shadow-md text-xs sm:text-sm"
-                            >
-                                <Save className="w-3.5 h-3.5 sm:w-4 sm:h-4 sm:mr-2" />
-                                <span className="hidden sm:inline">{loading ? 'Saving...' : 'Save Draft'}</span>
-                                <span className="sm:hidden">{loading ? '...' : 'Save'}</span>
-                            </Button>
-                            <Dialog open={isPublishOpen} onOpenChange={setIsPublishOpen}>
+            <Dialog open={isPublishOpen} onOpenChange={setIsPublishOpen}>
                                 <DialogContent className="sm:max-w-2xl p-0 overflow-hidden gap-0 border-0 shadow-2xl bg-white rounded-2xl max-h-[90vh] overflow-y-auto sm:max-h-none z-[150]">
                                     {/* Modern Header */}
                                     <div className="px-4 sm:px-8 pt-6 sm:pt-8 pb-4 sm:pb-6 border-b border-gray-100">
@@ -568,8 +548,11 @@ function EditorContent() {
                                     </div>
 
                                     <div className="p-4 sm:p-8">
-                                        <Tabs defaultValue="link" className="w-full">
-                                            <TabsList className="w-full mb-6 grid grid-cols-2 h-10 sm:h-12 bg-gray-100/50 p-1 rounded-xl">
+                                        <Tabs defaultValue="preview" className="w-full">
+                                            <TabsList className="w-full mb-6 grid grid-cols-3 h-10 sm:h-12 bg-gray-100/50 p-1 rounded-xl">
+                                                <TabsTrigger value="preview" className="rounded-lg data-[state=active]:bg-white data-[state=active]:text-primary-600 data-[state=active]:shadow-sm">
+                                                    <Globe className="w-3.5 h-3.5 sm:w-4 sm:h-4 sm:mr-2" /> <span className="text-xs sm:text-sm">Preview</span>
+                                                </TabsTrigger>
                                                 <TabsTrigger value="link" className="rounded-lg data-[state=active]:bg-white data-[state=active]:text-primary-600 data-[state=active]:shadow-sm">
                                                     <Link2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 sm:mr-2" /> <span className="text-xs sm:text-sm">Link</span>
                                                 </TabsTrigger>
@@ -581,6 +564,44 @@ function EditorContent() {
                                                     <Code className="w-3.5 h-3.5 sm:w-4 sm:h-4 sm:mr-2" /> <span className="text-xs sm:text-sm">Embed</span>
                                                 </TabsTrigger>
                                             </TabsList>
+
+                                            {/* Preview Tab */}
+                                            <TabsContent value="preview" className="space-y-4 mt-0">
+                                                <div className="border border-gray-200 rounded-xl overflow-hidden bg-gray-50" style={{ maxHeight: '70vh', overflowY: 'auto' }}>
+                                                    <UploadForm 
+                                                        isPreview={true} 
+                                                        initialData={{
+                                                            title: formData.title || 'Untitled Form',
+                                                            description: formData.description || '',
+                                                            primaryColor: formData.primaryColor || '#4f46e5',
+                                                            backgroundColor: formData.backgroundColor || '#ffffff',
+                                                            fontFamily: formData.fontFamily || 'Inter',
+                                                            buttonTextColor: formData.buttonTextColor || '#ffffff',
+                                                            cardStyle: formData.cardStyle || 'shadow',
+                                                            borderRadius: formData.borderRadius || 'md',
+                                                            allowedTypes: formData.allowedTypes || '',
+                                                            isPasswordProtected: formData.isPasswordProtected || false,
+                                                            password: formData.password || undefined,
+                                                            enableSubmitAnother: true,
+                                                            isAcceptingResponses: formData.isAcceptingResponses !== false,
+                                                            logoUrl: formData.logoUrl || '',
+                                                            expiryDate: formData.expiryDate || null,
+                                                            uploadFields: (formData.uploadFields || []).map(field => ({
+                                                                ...field,
+                                                                allowedTypes: typeof field.allowedTypes === 'string' 
+                                                                    ? (field.allowedTypes === 'any' ? ['any'] : field.allowedTypes === 'images' ? ['images'] : field.allowedTypes === 'docs' ? ['docs'] : [field.allowedTypes])
+                                                                    : (Array.isArray(field.allowedTypes) ? field.allowedTypes : ['any'])
+                                                            })) as any,
+                                                            customQuestions: (formData.customQuestions || []).map(q => ({
+                                                                ...q,
+                                                                type: q.type as any
+                                                            })) as any,
+                                                            accessProtectionType: formData.accessProtectionType || 'PUBLIC',
+                                                            allowedDomains: ''
+                                                        } as any}
+                                                    />
+                                                </div>
+                                            </TabsContent>
 
                                             {/* Link Tab */}
                                             <TabsContent value="link" className="space-y-6 sm:space-y-8">
@@ -897,26 +918,19 @@ function EditorContent() {
                                     </div>
                                 </DialogContent>
                             </Dialog>
-                        </div>
-                    </div>
-                </div>
-            </div>
 
             {/* Main Content Area */}
-            <div className="mx-auto px-4 sm:px-6 py-4 sm:py-6 max-w-[1600px]">
-                {/* Responsive Layout: Steps on top for mobile, left for desktop */}
-                <div className="flex flex-col lg:flex-row gap-6">
-                    {/* Step Navigation */}
-                    <div className="w-full lg:w-72 flex-shrink-0">
-                        {/* Mobile Stepper (Horizontal Scroll) */}
-                        <div className="lg:hidden mb-2 overflow-x-auto pb-2 -mx-1 px-1 scrollbar-hide">
-                            <div className="flex gap-2 min-w-max">
+            <div className="mx-auto px-4 sm:px-6 py-4 sm:py-6 max-w-[1200px]">
+                {/* Top-Down Layout: Steps at top, Content below */}
+                <div className="flex flex-col gap-6">
+                    {/* Step Navigation - Horizontal at Top (Centered, Auto-width) */}
+                    <div className="flex justify-center">
+                        <nav className="bg-white rounded-xl p-3 sm:p-4 shadow-sm border border-gray-200" aria-label="Steps">
+                            <div className="flex gap-2 sm:gap-3">
                                 {[
-                                    { name: 'Details', step: 0 },
-                                    { name: 'Files', step: 1 },
-                                    { name: 'Organization', step: 2 },
-                                    { name: 'Access', step: 3 },
-                                    { name: 'Design', step: 4 }
+                                    { name: 'Form Setup', step: 0 },
+                                    { name: 'Form Settings', step: 1 },
+                                    { name: 'Access Control', step: 2 }
                                 ].map((tab) => {
                                     const isActive = currentStep === tab.step;
                                     const isCompleted = currentStep > tab.step;
@@ -926,151 +940,122 @@ function EditorContent() {
                                             key={tab.name}
                                             onClick={() => setCurrentStep(tab.step)}
                                             className={`
-                                                flex items-center gap-2 py-2 px-4 rounded-full
-                                                font-medium text-xs transition-all duration-200 whitespace-nowrap border
+                                                flex items-center gap-2 sm:gap-3 py-2.5 sm:py-3 px-4 sm:px-5 rounded-lg
+                                                font-medium text-xs sm:text-sm transition-all duration-200
                                                 ${isActive
-                                                    ? 'bg-primary-600 text-white border-primary-600 shadow-md shadow-primary-200'
+                                                    ? 'bg-primary-50 text-primary-700 border-2 border-primary-200 shadow-sm'
                                                     : isCompleted
-                                                        ? 'bg-green-50 text-green-700 border-green-200'
-                                                        : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50'
+                                                        ? 'text-gray-600 hover:bg-gray-50 hover:text-gray-900 border-2 border-transparent'
+                                                        : 'text-gray-400 hover:bg-gray-50 hover:text-gray-600 border-2 border-transparent'
                                                 }
                                             `}
                                         >
-                                            <span className={`flex items-center justify-center w-5 h-5 rounded-full text-[10px] ${
-                                                isActive ? 'bg-white text-primary-600' : isCompleted ? 'bg-green-600 text-white' : 'bg-gray-100 text-gray-500'
-                                            }`}>
-                                                {isCompleted ? <Check className="w-3 h-3" /> : tab.step + 1}
+                                            <span
+                                                className={`
+                                                    flex items-center justify-center w-6 h-6 sm:w-7 sm:h-7 rounded-full text-xs font-semibold flex-shrink-0
+                                                    transition-colors duration-200
+                                                    ${isActive
+                                                        ? 'bg-primary-600 text-white'
+                                                        : isCompleted
+                                                            ? 'bg-gray-200 text-gray-600'
+                                                            : 'bg-gray-100 text-gray-400'
+                                                    }
+                                                `}
+                                            >
+                                                {isCompleted ? (
+                                                    <Check className="w-3 h-3 sm:w-4 sm:h-4" />
+                                                ) : (
+                                                    tab.step + 1
+                                                )}
                                             </span>
-                                            {tab.name}
+                                            <span className="hidden sm:inline">{tab.name}</span>
+                                            <span className="sm:hidden">{tab.name.split(' ')[0]}</span>
                                         </button>
                                     );
                                 })}
                             </div>
-                        </div>
-
-                        {/* Desktop Sidebar Nav */}
-                        <nav className="hidden lg:block bg-white rounded-xl p-4 shadow-sm border border-gray-200 space-y-2 sticky top-24" aria-label="Steps">
-                            {[
-                                { name: 'Form Details', step: 0 },
-                                { name: 'Files to Collect', step: 1 },
-                                { name: 'Organization', step: 2 },
-                                { name: 'Access Control', step: 3 },
-                                { name: 'Appearance', step: 4 }
-                            ].map((tab) => {
-                                const isActive = currentStep === tab.step;
-                                const isCompleted = currentStep > tab.step;
-
-                                return (
-                                    <button
-                                        key={tab.name}
-                                        onClick={() => setCurrentStep(tab.step)}
-                                        className={`
-                                                    w-full group relative flex items-center gap-3 py-3 px-4 rounded-lg
-                                                    font-medium text-sm transition-all duration-200 text-left
-                                                    ${isActive
-                                                ? 'bg-primary-50 text-primary-700 border-2 border-primary-200'
-                                                : isCompleted
-                                                    ? 'text-gray-600 hover:bg-gray-50 hover:text-gray-900 border-2 border-transparent'
-                                                    : 'text-gray-400 hover:bg-gray-50 hover:text-gray-600 border-2 border-transparent'
-                                            }
-                                                `}
-                                    >
-                                        <span
-                                            className={`
-                                                        flex items-center justify-center w-7 h-7 rounded-full text-xs font-semibold flex-shrink-0
-                                                        transition-colors duration-200
-                                                        ${isActive
-                                                    ? 'bg-primary-600 text-white'
-                                                    : isCompleted
-                                                        ? 'bg-gray-200 text-gray-600'
-                                                        : 'bg-gray-100 text-gray-400 group-hover:bg-gray-200'
-                                                }
-                                                    `}
-                                        >
-                                            {isCompleted ? (
-                                                <Check className="w-4 h-4" />
-                                            ) : (
-                                                tab.step + 1
-                                            )}
-                                        </span>
-                                        <span className="flex-1">{tab.name}</span>
-                                    </button>
-                                );
-                            })}
                         </nav>
                     </div>
 
                     {/* Content Area */}
-                    <div className="flex-1 min-w-0 space-y-6 pb-24 sm:pb-32">
+                    <div className="space-y-6">
                         <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-4 sm:p-8">
+                            {/* Header Bar */}
+                            <div className="flex items-center justify-between gap-4 mb-6 pb-6 border-b border-gray-200">
+                                <div className="flex items-center gap-3 sm:gap-6 min-w-0">
+                                    <h1 className="text-lg sm:text-2xl font-bold text-gray-900 truncate">{formData.title}</h1>
+                                </div>
+                                <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
+                                    <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-gradient-to-r from-primary-50 to-purple-50 rounded-full border border-primary-100">
+                                        <div className="w-2 h-2 rounded-full bg-primary-500 animate-pulse"></div>
+                                        <span className="text-xs font-medium text-primary-700">
+                                            {isSaving ? 'Auto-saving...' : 'All changes saved'}
+                                        </span>
+                                    </div>
+                                    <Button
+                                        variant="outline"
+                                        onClick={() => handleSave(false)}
+                                        disabled={loading}
+                                        className="h-9 sm:h-10 px-3 sm:px-6 font-medium border-gray-300 hover:border-primary-300 hover:bg-primary-50/50 transition-all shadow-sm hover:shadow-md text-xs sm:text-sm"
+                                    >
+                                        <Save className="w-3.5 h-3.5 sm:w-4 sm:h-4 sm:mr-2" />
+                                        <span className="hidden sm:inline">{loading ? 'Saving...' : 'Save Draft'}</span>
+                                        <span className="sm:hidden">{loading ? '...' : 'Save'}</span>
+                                    </Button>
+                                </div>
+                            </div>
+
                             {/* Step Content */}
                             {currentStep === 0 && (
-                                <GeneralStep
+                                <SetupStep
                                     formData={formData}
                                     updateField={updateField}
                                     addCustomQuestion={addCustomQuestion}
                                     removeCustomQuestion={removeCustomQuestion}
                                     updateCustomQuestionItem={updateCustomQuestionItem}
-                                />
-                            )}
-
-                            {currentStep === 1 && (
-                                <UploadsStep
-                                    formData={formData}
-                                    updateField={updateField}
                                     addUploadField={addUploadField}
                                     removeUploadField={removeUploadField}
                                     updateUploadFieldItem={updateUploadFieldItem}
                                 />
                             )}
 
+                            {currentStep === 1 && (
+                                <RulesStep
+                                    formData={formData}
+                                    updateField={updateField}
+                                />
+                            )}
+
                             {currentStep === 2 && (
-                                <OrganizationStep
+                                <AccessStep
                                     formData={formData}
                                     updateField={updateField}
-                                />
-                            )}
-
-                            {currentStep === 3 && (
-                                <TabTransition>
-                                    <AccessTab formData={formData} updateField={updateField} addCustomQuestion={addCustomQuestion} />
-                                </TabTransition>
-                            )}
-
-                            {currentStep === 4 && (
-                                <DesignStep
-                                    formData={formData}
-                                    updateField={updateField}
-                                    handleLogoUpload={handleLogoUpload}
-                                    handleCoverUpload={handleCoverUpload}
-                                    removeLogo={removeLogo}
+                                    onSave={() => handleSave(false, true)}
+                                    onLogoUpload={async (file) => await uploadAsset(file, 'logoUrl')}
+                                    onLogoRemove={removeLogo}
                                     logoUploading={logoUploading}
-                                    coverUploading={coverUploading}
-                                    isDraggingLogo={isDraggingLogo}
-                                    isDraggingCover={isDraggingCover}
                                 />
                             )}
-                        </div>
 
-                        {/* Bottom Navigation - Fixed at bottom */}
-                        <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-[0_-4px_10px_rgba(0,0,0,0.05)] z-50">
-                            <div className="mx-auto px-4 sm:px-6 py-3 sm:py-4 max-w-[1600px]">
+                            {/* Navigation Buttons - Inside Content Div */}
+                            <div className="mt-8 pt-6 border-t border-gray-200">
                                 <div className="flex justify-between items-center gap-4">
                                     <div className="hidden sm:block text-sm text-gray-500 font-medium">
-                                        Step {currentStep + 1} of 5
+                                        Step {currentStep + 1} of 3
                                     </div>
                                     <div className="flex-1 sm:flex-none flex justify-between sm:justify-end gap-3">
-                                        <Button
-                                            variant="outline"
-                                            onClick={() => setCurrentStep(prev => prev - 1)}
-                                            disabled={currentStep === 0}
-                                            className={`h-10 sm:h-11 px-4 sm:px-6 rounded-xl border-2 border-slate-200 text-slate-600 font-medium transition-all ${currentStep === 0 ? 'opacity-0 pointer-events-none' : 'hover:border-primary-200 hover:bg-primary-50 hover:text-primary-600'}`}
-                                        >
-                                            <ArrowLeft className="w-4 h-4 mr-2" />
-                                            Back
-                                        </Button>
+                                        {currentStep > 0 && (
+                                            <Button
+                                                variant="outline"
+                                                onClick={() => setCurrentStep(prev => prev - 1)}
+                                                className="h-10 sm:h-11 px-4 sm:px-6 rounded-xl border-2 border-slate-200 text-slate-600 font-medium transition-all hover:border-primary-200 hover:bg-primary-50 hover:text-primary-600"
+                                            >
+                                                <ArrowLeft className="w-4 h-4 mr-2" />
+                                                Back
+                                            </Button>
+                                        )}
 
-                                        {currentStep < 4 ? (
+                                        {currentStep < 2 ? (
                                             <Button
                                                 className="h-10 sm:h-11 px-6 sm:px-8 rounded-xl bg-gradient-to-r from-primary-600 to-primary-700 text-white font-semibold shadow-lg shadow-primary-500/20 hover:shadow-xl hover:shadow-primary-500/30 hover:scale-[1.02] transition-all flex-1 sm:flex-none"
                                                 onClick={() => setCurrentStep(prev => prev + 1)}
@@ -1096,7 +1081,7 @@ function EditorContent() {
                                                 ) : (
                                                     <Send className="w-4 h-4 mr-2" />
                                                 )}
-                                                Publish
+                                                Preview & Publish
                                             </Button>
                                         )}
                                     </div>
