@@ -14,6 +14,7 @@ export async function POST(request: Request) {
         const fieldId = formData.get('fieldId') as string | null;
         const submissionId = formData.get('submissionId') as string | null; // For per-submission folders
         const folderName = formData.get('folderName') as string | null; // Actual folder name for folder uploads
+        const relativePath = formData.get('relativePath') as string | null; // Relative path for folder uploads (e.g., "New folder/extra/file.jpg")
 
         if (!file) {
             return NextResponse.json({ error: 'No file uploaded' }, { status: 400 });
@@ -106,12 +107,23 @@ export async function POST(request: Request) {
         // Get Drive Client for the form owner
         const drive = await getDriveClient(form.userId);
 
-        // Use original filename exactly as uploaded (no timestamp/random suffix)
-        const originalFileName = file.name || 'unnamed_file';
+        // Extract filename from path (for folder uploads, file.name might include path)
+        // If relativePath is provided, use it to get the actual filename (last part)
+        // Otherwise, use file.name directly
+        let originalFileName = file.name || 'unnamed_file';
+        if (relativePath) {
+            // Extract just the filename from the relative path
+            const pathParts = relativePath.split('/');
+            originalFileName = pathParts[pathParts.length - 1] || file.name || 'unnamed_file';
+        } else if (file.name && file.name.includes('/')) {
+            // Fallback: if file.name contains path but no relativePath was sent, extract filename
+            const pathParts = file.name.split('/');
+            originalFileName = pathParts[pathParts.length - 1] || 'unnamed_file';
+        }
 
         // Prepare metadata
         const fileMetadata: any = {
-            name: originalFileName, // Keep original filename
+            name: originalFileName, // Use just the filename (no path)
             mimeType: file.type,
         };
 
@@ -189,7 +201,53 @@ export async function POST(request: Request) {
             }
         }
 
-        // Set the parent to the target folder (either base or per-submission)
+        // Handle subfolders if relativePath is provided (e.g., "New folder/extra/file.jpg")
+        if (relativePath && relativePath.includes('/')) {
+            const pathParts = relativePath.split('/');
+            // Remove the filename (last part) to get only folder paths
+            const folderPaths = pathParts.slice(0, -1);
+            
+            // Navigate/create folder structure starting from targetFolderId
+            let currentParentId = targetFolderId;
+            
+            for (const folderName of folderPaths) {
+                if (!folderName || folderName.trim() === '') continue;
+                
+                // Escape single quotes in folder name for query
+                const escapedFolderName = folderName.replace(/'/g, "\\'");
+                const folderQ = `name = '${escapedFolderName}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false and '${currentParentId}' in parents`;
+                
+                const folderResponse = await drive.files.list({
+                    q: folderQ,
+                    fields: 'files(id)',
+                    pageSize: 1,
+                    supportsAllDrives: true,
+                    includeItemsFromAllDrives: true
+                });
+                
+                if (folderResponse.data.files && folderResponse.data.files.length > 0) {
+                    // Folder exists, use it
+                    currentParentId = folderResponse.data.files[0].id!;
+                } else {
+                    // Create subfolder
+                    const subfolder = await drive.files.create({
+                        requestBody: {
+                            name: folderName,
+                            mimeType: 'application/vnd.google-apps.folder',
+                            parents: [currentParentId]
+                        },
+                        fields: 'id',
+                        supportsAllDrives: true
+                    });
+                    currentParentId = subfolder.data.id!;
+                }
+            }
+            
+            // Set the final parent to the deepest subfolder
+            targetFolderId = currentParentId;
+        }
+
+        // Set the parent to the target folder (either base, per-submission, or subfolder)
         fileMetadata.parents = [targetFolderId];
 
         // Upload to Drive

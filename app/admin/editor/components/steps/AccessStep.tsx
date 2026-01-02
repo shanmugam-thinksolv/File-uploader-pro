@@ -113,7 +113,7 @@ export function AccessStep({ formData, updateField, onSave, onLogoUpload, onLogo
                                         value={formData.password || ''}
                                         onChange={(e) => updateField('password', e.target.value)}
                                         placeholder="Enter password"
-                                        className="h-10 flex-1 pr-10"
+                                        className="h-10 flex-1 pr-10 border-primary-100 focus:border-primary-600 focus:ring-0 focus-visible:ring-0"
                                     />
                                     <Button
                                         type="button"
@@ -188,9 +188,9 @@ export function AccessStep({ formData, updateField, onSave, onLogoUpload, onLogo
                 <Label className="text-sm  text-base font-medium text-gray-700">Appearance</Label>
                 
                 <div className="grid grid-cols-2 gap-6">
-                    <div className="space-y-3">
-                        <Label className="text-xs text-gray-500">Primary Color</Label>
-                        <div className="flex items-center gap-2">
+                    <div className="space-y-3 mt-3">
+                        <Label className="text-sm text-gray-900">Primary Color :</Label>
+                        <div className="flex items-center gap-2 mt-2">
                             <Input
                                 type="color"
                                 value={formData.primaryColor}
@@ -202,13 +202,13 @@ export function AccessStep({ formData, updateField, onSave, onLogoUpload, onLogo
                                 value={formData.primaryColor}
                                 onChange={(e) => updateField('primaryColor', e.target.value)}
                                 placeholder="#4f46e5"
-                                className="h-10 flex-1"
+                                className="h-10 flex-1 border-primary-100 focus:border-primary-600 focus:ring-0 focus-visible:ring-0"
                             />
                         </div>
                     </div>
-                    <div className="space-y-3">
-                        <Label className="text-xs text-gray-500">Background</Label>
-                        <div className="flex items-center gap-2">
+                    <div className="space-y-3 mt-3">
+                        <Label className="text-sm text-gray-900">Background :</Label>
+                        <div className="flex items-center gap-2 mt-2">
                             <Input
                                 type="color"
                                 value={formData.backgroundColor}
@@ -220,15 +220,15 @@ export function AccessStep({ formData, updateField, onSave, onLogoUpload, onLogo
                                 value={formData.backgroundColor}
                                 onChange={(e) => updateField('backgroundColor', e.target.value)}
                                 placeholder="#ffffff"
-                                className="h-10 flex-1"
+                                className="h-10 flex-1 border-primary-100 focus:border-primary-600 focus:ring-0 focus-visible:ring-0"
                             />
                         </div>
                     </div>
                 </div>
 
                 {/* Logo Upload */}
-                <div className="space-y-3 pt-4">
-                    <Label className="text-xs text-gray-500">Form Logo</Label>
+                <div className="space-y-3 pt-3">
+                    <Label className="text-sm text-gray-900">Form Logo</Label>
                     {formData.logoUrl ? (
                         <div className="relative border border-gray-200 rounded-lg p-5 bg-gray-50">
                             <div className="flex items-center gap-4">
@@ -310,7 +310,7 @@ export function AccessStep({ formData, updateField, onSave, onLogoUpload, onLogo
                                 }}
                                 disabled={logoUploading}
                             />
-                            <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-primary-400 hover:bg-primary-50/30 transition-all cursor-pointer">
+                            <div className="border-2 mt-3 border-dashed border-gray-300 rounded-lg p-10 text-center hover:border-primary-400 hover:bg-primary-50/30 transition-all cursor-pointer">
                                 {logoUploading ? (
                                     <div className="flex flex-col items-center gap-2">
                                         <Loader2 className="w-8 h-8 text-primary-600 animate-spin" />

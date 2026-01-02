@@ -31,30 +31,46 @@ export function SetupStep({
     updateUploadFieldItem
 }: SetupStepProps) {
     return (
-        <div className="max-w-5xl mx-auto space-y-6">
+        <div className="max-w-6xl mx-auto space-y-8">
             {/* Form Title and Description */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                    <Label className="text-sm font-medium text-gray-700">Form Title</Label>
+                <div className="space-y-3 bg-white/85 backdrop-blur border border-primary-50 rounded-2xl p-5 shadow-sm">
+                    <div className="flex items-center gap-3">
+                        <div className="p-2 rounded-xl bg-primary-50 text-primary-700">
+                            <FileText className="w-5 h-5" />
+                        </div>
+                        <div>
+                            <Label className="text-sm font-semibold text-gray-800">Form Title</Label>
+                            
+                        </div>
+                    </div>
                     <Input
                         value={formData.title}
                         onChange={(e) => updateField('title', e.target.value)}
                         placeholder="Untitled Form"
-                        className="h-11 mt-2"
+                        className="h-11 rounded-xl border-primary-100 focus:border-primary-600 focus:ring-0 focus-visible:ring-0"
                         autoFocus
                     />
                 </div>
 
-                <div className="space-y-2">
-                    <Label className="text-sm font-medium text-gray-700">
-                        Description <span className="text-gray-400 font-normal">(optional)</span>
-                    </Label>
+                <div className="space-y-3 bg-white/85 backdrop-blur border border-primary-50 rounded-2xl p-5 shadow-sm">
+                    <div className="flex items-center gap-3">
+                        <div className="p-2 rounded-xl bg-primary-50 text-primary-700">
+                            <Sparkles className="w-5 h-5" />
+                        </div>
+                        <div>
+                            <Label className="text-sm font-semibold text-gray-800">
+                                Description <span className="text-gray-400 font-normal">(optional)</span>
+                            </Label>
+                            
+                        </div>
+                    </div>
                     <Textarea
                         value={formData.description}
                         onChange={(e) => updateField('description', e.target.value)}
-                        placeholder="Eg., Any Instructions.."
+                        placeholder="Tell people what files you need..."
                         rows={3}
-                        className="resize-none mt-2 text-gray-100"
+                        className="resize-none rounded-xl border-primary-100 focus:border-primary-600 focus:ring-0 focus-visible:ring-0"
                     />
                 </div>
             </div>
@@ -62,16 +78,21 @@ export function SetupStep({
             {/* Questions and Upload Fields */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* Questions Section */}
-                <div className="space-y-4">
+                <div className="space-y-4 bg-white/85 backdrop-blur border border-primary-50 rounded-2xl p-5 shadow-sm">
                     <div className="flex items-center justify-between">
-                        <Label className="text-sm font-medium text-gray-700">
-                            Questions <span className="text-gray-400 font-normal">(optional)</span>
-                        </Label>
+                        <div className="flex items-center gap-3">
+                            <div className="p-2 rounded-xl bg-primary-50 text-primary-700">
+                                <HelpCircle className="w-5 h-5" />
+                            </div>
+                            <div>
+                                <Label className="text-sm font-semibold text-gray-800">Custom Questions</Label>
+                            </div>
+                        </div>
                         <Button 
                             variant="outline" 
                             onClick={addCustomQuestion} 
                             size="sm" 
-                            className="h-8 px-3 text-primary-600 border-primary-200 hover:bg-primary-50"
+                            className="h-9 px-3 border-primary-200 text-primary-700 hover:bg-primary-50"
                         >
                             <Plus className="w-4 h-4 mr-1.5" />
                             Add Question
@@ -89,15 +110,22 @@ export function SetupStep({
                 </div>
 
                 {/* Upload Fields Section */}
-                <div className="space-y-4">
+                <div className="space-y-4 bg-white/85 backdrop-blur border border-primary-50 rounded-2xl p-5 shadow-sm">
                     <div className="flex items-center justify-between">
-                        <Label className="text-sm font-medium text-gray-700">Upload Fields</Label>
+                        <div className="flex items-center gap-3">
+                            <div className="p-2 rounded-xl bg-primary-50 text-primary-700">
+                                <UploadCloud className="w-5 h-5" />
+                            </div>
+                            <div>
+                                <Label className="text-sm font-semibold text-gray-800">Upload Fields</Label>
+                            </div>
+                        </div>
                         {formData.uploadFields.length < 3 && (
                             <Button 
                                 variant="outline" 
                                 onClick={addUploadField} 
                                 size="sm" 
-                                className="h-8 px-3 text-primary-600 border-primary-200 hover:bg-primary-50"
+                                className="h-9 px-3 border-primary-200 text-primary-700 hover:bg-primary-50"
                             >
                                 <Plus className="w-4 h-4 mr-1.5" />
                                 Add Field

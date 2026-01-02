@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Switch } from "@/components/ui/switch"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
-import { Save, Link2, Copy, Check, ArrowLeft, ArrowRight, Loader2, Globe, Mail, QrCode, Code, Send } from "lucide-react"
+import { Save, Link2, Copy, Check, ArrowLeft, ArrowRight, Loader2, Globe, Sparkles, Code, Send } from "lucide-react"
 import {
     Tabs,
     TabsContent,
@@ -515,7 +515,7 @@ function EditorContent() {
     }
 
     return (
-        <div className="min-h-screen bg-slate-50">
+        <div className="min-h-screen bg-gradient-to-b from-primary-50/60 via-white to-white">
             <Dialog open={isPublishOpen} onOpenChange={setIsPublishOpen}>
                                 <DialogContent className="sm:max-w-2xl p-0 overflow-hidden gap-0 border-0 shadow-2xl bg-white rounded-2xl max-h-[90vh] overflow-y-auto sm:max-h-none z-[150]">
                                     {/* Modern Header */}
@@ -920,17 +920,16 @@ function EditorContent() {
                             </Dialog>
 
             {/* Main Content Area */}
-            <div className="mx-auto px-4 sm:px-6 py-4 sm:py-6 max-w-[1200px]">
-                {/* Top-Down Layout: Steps at top, Content below */}
+            <div className="mx-auto px-4 sm:px-8 py-6 sm:py-10 max-w-[1300px]">
                 <div className="flex flex-col gap-6">
-                    {/* Step Navigation - Horizontal at Top (Centered, Auto-width) */}
+                    {/* Step Navigation */}
                     <div className="flex justify-center">
-                        <nav className="bg-white rounded-xl p-3 sm:p-4 shadow-sm border border-gray-200" aria-label="Steps">
+                        <nav className="bg-white/80 backdrop-blur-md rounded-2xl p-3 sm:p-4 shadow-lg shadow-primary-100/50 border border-primary-50" aria-label="Steps">
                             <div className="flex gap-2 sm:gap-3">
                                 {[
-                                    { name: 'Form Setup', step: 0 },
-                                    { name: 'Form Settings', step: 1 },
-                                    { name: 'Access Control', step: 2 }
+                                    { name: 'Setup', step: 0 },
+                                    { name: 'Settings', step: 1 },
+                                    { name: 'Access', step: 2 }
                                 ].map((tab) => {
                                     const isActive = currentStep === tab.step;
                                     const isCompleted = currentStep > tab.step;
@@ -940,13 +939,13 @@ function EditorContent() {
                                             key={tab.name}
                                             onClick={() => setCurrentStep(tab.step)}
                                             className={`
-                                                flex items-center gap-2 sm:gap-3 py-2.5 sm:py-3 px-4 sm:px-5 rounded-lg
-                                                font-medium text-xs sm:text-sm transition-all duration-200
+                                                flex items-center gap-2 sm:gap-3 py-2.5 sm:py-3 px-4 sm:px-5 rounded-xl
+                                                font-medium text-xs sm:text-sm transition-all duration-200 border
                                                 ${isActive
-                                                    ? 'bg-primary-50 text-primary-700 border-2 border-primary-200 shadow-sm'
+                                                    ? 'bg-primary-600 text-white border-primary-600 shadow-lg shadow-primary-500/30'
                                                     : isCompleted
-                                                        ? 'text-gray-600 hover:bg-gray-50 hover:text-gray-900 border-2 border-transparent'
-                                                        : 'text-gray-400 hover:bg-gray-50 hover:text-gray-600 border-2 border-transparent'
+                                                        ? 'bg-primary-50 text-primary-700 border-primary-100 hover:border-primary-200'
+                                                        : 'bg-white text-gray-500 border-primary-50 hover:text-primary-700 hover:border-primary-200'
                                                 }
                                             `}
                                         >
@@ -955,10 +954,10 @@ function EditorContent() {
                                                     flex items-center justify-center w-6 h-6 sm:w-7 sm:h-7 rounded-full text-xs font-semibold flex-shrink-0
                                                     transition-colors duration-200
                                                     ${isActive
-                                                        ? 'bg-primary-600 text-white'
+                                                        ? 'bg-white text-primary-700'
                                                         : isCompleted
-                                                            ? 'bg-gray-200 text-gray-600'
-                                                            : 'bg-gray-100 text-gray-400'
+                                                            ? 'bg-primary-100 text-primary-700'
+                                                            : 'bg-primary-50 text-primary-500'
                                                     }
                                                 `}
                                             >
@@ -979,16 +978,22 @@ function EditorContent() {
 
                     {/* Content Area */}
                     <div className="space-y-6">
-                        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-4 sm:p-8">
+                        <div className="bg-white/90 backdrop-blur-md rounded-3xl shadow-xl shadow-primary-100/60 border border-primary-50 p-5 sm:p-8">
                             {/* Header Bar */}
-                            <div className="flex items-center justify-between gap-4 mb-6 pb-6 border-b border-gray-200">
-                                <div className="flex items-center gap-3 sm:gap-6 min-w-0">
-                                    <h1 className="text-lg sm:text-2xl font-bold text-gray-900 truncate">{formData.title}</h1>
+                            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6 pb-6 border-b border-primary-100">
+                                <div className="flex items-center gap-3 sm:gap-4 min-w-0">
+                                    {/* <div className="p-3 rounded-2xl bg-primary-50 text-primary-700">
+                                        <Sparkles className="w-5 h-5" />
+                                    </div> */}
+                                    <div className="min-w-0">
+                                        <p className="text-xs uppercase tracking-[0.18em] text-primary-500 font-semibold">Form Editor</p>
+                                        <h1 className="text-lg sm:text-2xl font-bold text-gray-900 truncate">{formData.title}</h1>
+                                    </div>
                                 </div>
                                 <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
-                                    <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-gradient-to-r from-primary-50 to-purple-50 rounded-full border border-primary-100">
+                                    <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-primary-50 rounded-full border border-primary-100 shadow-sm">
                                         <div className="w-2 h-2 rounded-full bg-primary-500 animate-pulse"></div>
-                                        <span className="text-xs font-medium text-primary-700">
+                                        <span className="text-xs font-semibold text-primary-700">
                                             {isSaving ? 'Auto-saving...' : 'All changes saved'}
                                         </span>
                                     </div>
@@ -996,9 +1001,9 @@ function EditorContent() {
                                         variant="outline"
                                         onClick={() => handleSave(false)}
                                         disabled={loading}
-                                        className="h-9 sm:h-10 px-3 sm:px-6 font-medium border-gray-300 hover:border-primary-300 hover:bg-primary-50/50 transition-all shadow-sm hover:shadow-md text-xs sm:text-sm"
+                                        className="h-10 sm:h-11 px-3 sm:px-5 font-semibold border-primary-200 text-black hover:bg-primary-50/70 hover:border-primary-300 shadow-sm"
                                     >
-                                        <Save className="w-3.5 h-3.5 sm:w-4 sm:h-4 sm:mr-2" />
+                                        <Save className="w-4 h-4 sm:mr-2 text-primary" />
                                         <span className="hidden sm:inline">{loading ? 'Saving...' : 'Save Draft'}</span>
                                         <span className="sm:hidden">{loading ? '...' : 'Save'}</span>
                                     </Button>
@@ -1037,10 +1042,10 @@ function EditorContent() {
                                 />
                             )}
 
-                            {/* Navigation Buttons - Inside Content Div */}
-                            <div className="mt-8 pt-6 border-t border-gray-200">
-                                <div className="flex justify-between items-center gap-4">
-                                    <div className="hidden sm:block text-sm text-gray-500 font-medium">
+                            {/* Navigation Buttons */}
+                            <div className="mt-8 pt-6 border-t border-primary-100">
+                                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                                    <div className="text-sm text-gray-500 font-medium">
                                         Step {currentStep + 1} of 3
                                     </div>
                                     <div className="flex-1 sm:flex-none flex justify-between sm:justify-end gap-3">
@@ -1048,7 +1053,7 @@ function EditorContent() {
                                             <Button
                                                 variant="outline"
                                                 onClick={() => setCurrentStep(prev => prev - 1)}
-                                                className="h-10 sm:h-11 px-4 sm:px-6 rounded-xl border-2 border-slate-200 text-slate-600 font-medium transition-all hover:border-primary-200 hover:bg-primary-50 hover:text-primary-600"
+                                                className="h-11 px-5 rounded-xl border-primary-200 text-primary-700 hover:bg-primary-50"
                                             >
                                                 <ArrowLeft className="w-4 h-4 mr-2" />
                                                 Back
@@ -1057,7 +1062,7 @@ function EditorContent() {
 
                                         {currentStep < 2 ? (
                                             <Button
-                                                className="h-10 sm:h-11 px-6 sm:px-8 rounded-xl bg-gradient-to-r from-primary-600 to-primary-700 text-white font-semibold shadow-lg shadow-primary-500/20 hover:shadow-xl hover:shadow-primary-500/30 hover:scale-[1.02] transition-all flex-1 sm:flex-none"
+                                                className="h-11 px-6 rounded-xl bg-gradient-to-r from-primary-600 to-primary-700 text-white font-semibold shadow-lg shadow-primary-400/30 hover:shadow-xl hover:scale-[1.01] transition-all"
                                                 onClick={() => setCurrentStep(prev => prev + 1)}
                                             >
                                                 Next
@@ -1065,7 +1070,7 @@ function EditorContent() {
                                             </Button>
                                         ) : (
                                             <Button
-                                                className="h-10 sm:h-11 px-6 sm:px-8 rounded-xl bg-gradient-to-r from-primary-600 to-primary-700 text-white font-semibold shadow-lg shadow-primary-500/20 hover:shadow-xl hover:shadow-primary-500/30 hover:scale-[1.02] transition-all flex-1 sm:flex-none"
+                                                className="h-11 px-6 rounded-xl bg-gradient-to-r from-primary-600 to-primary-700 text-white font-semibold shadow-lg shadow-primary-400/30 hover:shadow-xl hover:scale-[1.01] transition-all"
                                                 onClick={async () => {
                                                     if (!formId || formId === 'new') {
                                                         const newId = await handleSave(false);

@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Folder, HardDrive, Loader2, Info, X, RefreshCw } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { RiDriveLine } from "react-icons/ri";
 import { EditorFormData } from "../types";
 
 interface GooglePickerFolderSelectProps {
@@ -236,7 +237,7 @@ export function GooglePickerFolderSelect({ formData, updateField }: GooglePicker
             <div className="flex items-start justify-between">
                 <div className="space-y-0.5 flex-1">
                     <div className="flex items-center gap-2">
-                        <Label className="text-sm font-medium">Google Drive Storage</Label>
+                        <Label className="text-sm font-medium flex items-center gap-2"> <RiDriveLine className="w-6 h-6 text-primary-700" /> Google Drive Storage</Label>
                         <Tooltip>
                             <TooltipTrigger
                                 onMouseEnter={() => setShowTooltip(true)}

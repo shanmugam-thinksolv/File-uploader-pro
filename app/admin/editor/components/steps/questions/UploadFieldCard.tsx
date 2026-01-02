@@ -95,7 +95,7 @@ export function UploadFieldCard({ field, onUpdate, onDelete }: UploadFieldCardPr
                   id={`multiple-${field.id}`}
                   checked={field.allowMultiple}
                   onChange={(e) => onUpdate({ allowMultiple: e.target.checked })}
-                  className="peer appearance-none w-5 h-5 rounded border-2 border-gray-300 checked:border-primary-500 checked:bg-primary-500 transition-all cursor-pointer"
+                  className="peer appearance-none w-5 h-5 rounded border-2 border-gray-300 checked:border-primary checked:bg-primary transition-all cursor-pointer"
                 />
                 <svg className="absolute w-3.5 h-3.5 text-white opacity-0 peer-checked:opacity-100 transition-opacity pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7"></path></svg>
               </div>
@@ -109,7 +109,7 @@ export function UploadFieldCard({ field, onUpdate, onDelete }: UploadFieldCardPr
                   id={`folder-${field.id}`}
                   checked={field.allowFolder}
                   onChange={(e) => onUpdate({ allowFolder: e.target.checked })}
-                  className="peer appearance-none w-5 h-5 rounded border-2 border-gray-300 checked:border-primary-500 checked:bg-primary-500 transition-all cursor-pointer"
+                  className="peer appearance-none w-5 h-5 rounded border-2 border-gray-300 checked:border-primary checked:bg-primary transition-all cursor-pointer"
                 />
                 <svg className="absolute w-3.5 h-3.5 text-white opacity-0 peer-checked:opacity-100 transition-opacity pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7"></path></svg>
               </div>

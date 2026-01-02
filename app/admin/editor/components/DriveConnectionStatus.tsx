@@ -42,7 +42,7 @@ export function DriveConnectionStatus({ formData, updateField }: DriveConnection
     }
 
     return (
-        <div className="mt-4 p-4 border border-primary-100 rounded-xl bg-primary-50/30 animate-in fade-in slide-in-from-top-2">
+        <div className=" p-4 border border-primary-100 rounded-xl bg-primary-50/30 animate-in fade-in slide-in-from-top-2">
             <GooglePickerFolderSelect formData={formData} updateField={updateField} />
         </div>
     )

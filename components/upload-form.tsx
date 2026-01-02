@@ -171,6 +171,7 @@ const FileDropzone = ({
     allowMultiple = true,
     allowFolder = true,
     onViewFolder,
+    onRemoveFolder,
 }: {
     fieldId: string
     label: string
@@ -186,6 +187,7 @@ const FileDropzone = ({
     allowMultiple?: boolean
     allowFolder?: boolean
     onViewFolder?: (fieldId: string, folderName: string) => void
+    onRemoveFolder?: (fieldId: string, folderName: string) => void
 }) => {
     const { getRootProps, getInputProps, isDragActive, fileRejections } = useDropzone({
         onDrop: (acceptedFiles) => {
@@ -355,11 +357,7 @@ const FileDropzone = ({
                                                 return (
                                                     <div
                                                         key={folder.folderName}
-                                                        className="flex items-center gap-3 p-3 rounded-lg border bg-blue-50 border-blue-200 hover:bg-blue-100 cursor-pointer transition-colors"
-                                                        onClick={() => {
-                                                            // Open folder viewer popup
-                                                            onViewFolder?.(fieldId, folder.folderName)
-                                                        }}
+                                                        className="flex items-center gap-3 p-3 rounded-lg border bg-blue-50 border-blue-200 hover:bg-blue-100 transition-colors"
                                                     >
                                                         <div className="flex-shrink-0">
                                                             <Folder className="w-8 h-8 text-blue-600" />
@@ -372,8 +370,31 @@ const FileDropzone = ({
                                                                 {folder.files.length} {folder.files.length === 1 ? 'file' : 'files'} • {formatFileSize(totalSize)}
                                                             </p>
                                                         </div>
-                                                        <div className="text-xs text-blue-600 flex-shrink-0">
-                                                            Click to view
+                                                        <div className="flex items-center gap-2 flex-shrink-0">
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => {
+                                                                    // Open folder viewer popup
+                                                                    onViewFolder?.(fieldId, folder.folderName)
+                                                                }}
+                                                                className="text-xs text-blue-600 hover:text-blue-700 hover:underline"
+                                                            >
+                                                                Click to view
+                                                            </button>
+                                                            <button
+                                                                type="button"
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation()
+                                                                    e.preventDefault()
+                                                                    if (onRemoveFolder && confirm(`Are you sure you want to delete the folder "${folder.folderName}" and all ${folder.files.length} file(s) in it?`)) {
+                                                                        onRemoveFolder(fieldId, folder.folderName)
+                                                                    }
+                                                                }}
+                                                                className="p-1.5 text-red-600 hover:text-red-700 hover:bg-red-50 rounded transition-colors"
+                                                                title="Delete folder"
+                                                            >
+                                                                <Trash2 className="w-4 h-4" />
+                                                            </button>
                                                         </div>
                                                     </div>
                                                 )
@@ -534,6 +555,8 @@ export default function UploadForm({ isPreview = false, formId, initialData, for
     const [uploadProgress, setUploadProgress] = useState<Record<string, Record<number, number>>>({})
     const [showErrorModal, setShowErrorModal] = useState(false)
     const [rejectedFilesData, setRejectedFilesData] = useState<{ files: Array<{ name: string; size: number }>, maxSizeMB: number } | null>(null)
+    const [showEmptyFormModal, setShowEmptyFormModal] = useState(false)
+    const [emptyFormMessage, setEmptyFormMessage] = useState("")
     
     // Folder viewer state
     const [viewingFolder, setViewingFolder] = useState<{ fieldId: string; folderName: string } | null>(null)
@@ -785,6 +808,89 @@ export default function UploadForm({ isPreview = false, formId, initialData, for
         })
     }
 
+    const handleFolderRemove = (fieldId: string, folderName: string) => {
+        // First, get the current files to identify which indices to remove
+        const currentFiles = files[fieldId] || []
+        const folderFileIndices = new Set<number>()
+        
+        // Find all indices of files in this folder (including subfolders)
+        currentFiles.forEach((file, index) => {
+            const fileWithMetadata = file as FileWithMetadata
+            if (fileWithMetadata._isFromFolder && fileWithMetadata._folderName === folderName) {
+                folderFileIndices.add(index)
+            }
+        })
+        
+        // Remove files from state
+        setFiles(prev => {
+            const fieldFiles = prev[fieldId] || []
+            // Remove all files that belong to this folder (including subfolders)
+            const updatedFiles = fieldFiles.filter((file) => {
+                const fileWithMetadata = file as FileWithMetadata
+                // Keep files that are NOT from this folder
+                return !(fileWithMetadata._isFromFolder && fileWithMetadata._folderName === folderName)
+            })
+            
+            if (updatedFiles.length === 0) {
+                const next = { ...prev }
+                delete next[fieldId]
+                return next
+            }
+            return { ...prev, [fieldId]: updatedFiles }
+        })
+        
+        // Remove errors for all files in this folder
+        setFileErrors(prev => {
+            const fieldErrors = prev[fieldId] || {}
+            if (!fieldErrors || Object.keys(fieldErrors).length === 0) return prev
+            
+            // Remove errors for those indices and reindex
+            const updatedErrors: Record<number, string> = {}
+            Object.keys(fieldErrors).forEach((key) => {
+                const idx = parseInt(key)
+                if (!folderFileIndices.has(idx)) {
+                    // Reindex: count how many folder files were before this index
+                    const folderFilesBefore = Array.from(folderFileIndices).filter(i => i < idx).length
+                    updatedErrors[idx - folderFilesBefore] = fieldErrors[idx]
+                }
+            })
+            
+            if (Object.keys(updatedErrors).length === 0) {
+                const next = { ...prev }
+                delete next[fieldId]
+                return next
+            }
+            return { ...prev, [fieldId]: updatedErrors }
+        })
+        
+        // Remove upload progress for all files in this folder
+        setUploadProgress(prev => {
+            const fieldProgress = prev[fieldId] || {}
+            if (!fieldProgress || Object.keys(fieldProgress).length === 0) return prev
+            
+            // Remove progress for those indices and reindex
+            const updatedProgress: Record<number, number> = {}
+            Object.keys(fieldProgress).forEach((key) => {
+                const idx = parseInt(key)
+                if (!folderFileIndices.has(idx)) {
+                    // Reindex: count how many folder files were before this index
+                    const folderFilesBefore = Array.from(folderFileIndices).filter(i => i < idx).length
+                    updatedProgress[idx - folderFilesBefore] = fieldProgress[idx]
+                }
+            })
+            
+            if (Object.keys(updatedProgress).length === 0) {
+                const next = { ...prev }
+                delete next[fieldId]
+                return next
+            }
+            return { ...prev, [fieldId]: updatedProgress }
+        })
+        
+        // Close the folder viewer after deletion
+        setViewingFolder(null)
+    }
+
     const handleAnswerChange = (questionId: string, value: any) => {
         setAnswers(prev => ({ ...prev, [questionId]: value }))
         // Clear any existing validation error for this question once the user interacts
@@ -807,6 +913,19 @@ export default function UploadForm({ isPreview = false, formId, initialData, for
         // Filter to only validate fields with filled labels
         const filledQuestions = config.customQuestions?.filter(q => q.label && q.label.trim() !== '') || []
         const filledUploadFields = config.uploadFields?.filter(field => field.label && field.label.trim() !== '') || []
+
+        // Check if there are any files at all
+        const hasAnyFiles = filledUploadFields.some(f => {
+            const fieldFiles = files[f.id] || []
+            return fieldFiles.length > 0
+        })
+
+        // Prevent upload if no files are present
+        if (!hasAnyFiles) {
+            setEmptyFormMessage("Please upload at least one file before submitting.")
+            setShowEmptyFormModal(true)
+            return
+        }
 
         // Validate required files
         const missingFiles = filledUploadFields.filter(f => {
@@ -869,6 +988,19 @@ export default function UploadForm({ isPreview = false, formId, initialData, for
             const uploadedFiles = []
             const errors: Record<string, Record<number, string>> = {}
 
+            // Double-check: Ensure there are files to upload before starting
+            const totalFilesCount = filledUploadFields.reduce((count, field) => {
+                const fieldFiles = files[field.id] || []
+                return count + fieldFiles.length
+            }, 0)
+
+            if (totalFilesCount === 0) {
+                setEmptyFormMessage("No files to upload. Please add files before submitting.")
+                setShowEmptyFormModal(true)
+                setUploading(false)
+                return
+            }
+
             // Upload each file for each field (only fields with filled labels)
             for (const field of filledUploadFields) {
                 const fieldFiles = files[field.id] || []
@@ -892,10 +1024,18 @@ export default function UploadForm({ isPreview = false, formId, initialData, for
                         formData.append('fieldId', field.id) // Send fieldId so API can echo it back
                         formData.append('submissionId', submissionId) // Send submission ID for per-submission folder
                         
-                        // Send folder name if this file is from a folder upload
+                        // Send folder name and relative path if this file is from a folder upload
                         const fileMetadata = file as FileWithMetadata
                         if (fileMetadata._folderName) {
                             formData.append('folderName', fileMetadata._folderName)
+                        }
+                        
+                        // Send relative path for subfolder handling
+                        if (fileMetadata._isFromFolder && 'webkitRelativePath' in file) {
+                            const webkitPath = (file as any).webkitRelativePath
+                            if (webkitPath && typeof webkitPath === 'string' && webkitPath.trim() !== '') {
+                                formData.append('relativePath', webkitPath)
+                            }
                         }
 
                         // Use XMLHttpRequest to track upload progress
@@ -1523,6 +1663,7 @@ export default function UploadForm({ isPreview = false, formId, initialData, for
                                             uploadProgress={uploadProgress[field.id]}
                                             uploading={uploading}
                                             onViewFolder={(fieldId, folderName) => setViewingFolder({ fieldId, folderName })}
+                                            onRemoveFolder={handleFolderRemove}
                                         />
                                     </div>
                                 ))}
@@ -1636,20 +1777,172 @@ export default function UploadForm({ isPreview = false, formId, initialData, for
                             {/* File List */}
                             <div className="p-4 max-h-[60vh] overflow-y-auto">
                                 <div className="space-y-2">
-                                    {folderFiles.map((file, index) => (
-                                        <div key={`${file.name}-${index}`}
-                                            className="flex items-center gap-3 p-3 rounded-lg border bg-gray-50 hover:bg-gray-100 transition-colors">
-                                            <div className="flex-shrink-0">{getFileIcon(file)}</div>
-                                            <div className="flex-1 min-w-0">
-                                                <p className="text-sm font-medium text-gray-900 truncate">
-                                                    {file.name}
-                                                </p>
-                                                <p className="text-xs text-gray-600">
-                                                    {formatFileSize(file.size)}
-                                                </p>
-                                            </div>
-                                        </div>
-                                    ))}
+                                    {(() => {
+                                        // Get all files for this field to find actual indices
+                                        const allFieldFiles = files[viewingFolder.fieldId] || []
+                                        
+                                        // Create a map of file to its actual index in the field files array
+                                        const fileToIndexMap = new Map<FileWithMetadata, number>()
+                                        allFieldFiles.forEach((file, index) => {
+                                            fileToIndexMap.set(file, index)
+                                        })
+                                        
+                                        // Group files by their path (root vs subfolders)
+                                        const rootFiles: FileWithMetadata[] = []
+                                        const subfolderGroups: Record<string, FileWithMetadata[]> = {}
+                                        
+                                        folderFiles.forEach((file) => {
+                                            let relativePath = ''
+                                            if ('webkitRelativePath' in file) {
+                                                const webkitPath = (file as any).webkitRelativePath
+                                                if (webkitPath && typeof webkitPath === 'string') {
+                                                    relativePath = webkitPath
+                                                }
+                                            }
+                                            
+                                            if (relativePath) {
+                                                const pathParts = relativePath.split('/')
+                                                // If path has more than 2 parts (folder/subfolder/file), it's in a subfolder
+                                                // pathParts[0] is the root folder name, pathParts[1] is subfolder, etc.
+                                                if (pathParts.length > 2) {
+                                                    // File is in a subfolder
+                                                    const subfolderName = pathParts[1] // Second part is the subfolder
+                                                    const fileName = pathParts[pathParts.length - 1] // Last part is filename
+                                                    
+                                                    if (!subfolderGroups[subfolderName]) {
+                                                        subfolderGroups[subfolderName] = []
+                                                    }
+                                                    subfolderGroups[subfolderName].push(file)
+                                                } else {
+                                                    // File is in root folder (folder/file.jpg)
+                                                    rootFiles.push(file)
+                                                }
+                                            } else {
+                                                // No path info, treat as root file
+                                                rootFiles.push(file)
+                                            }
+                                        })
+                                        
+                                        return (
+                                            <>
+                                                {/* Root level files */}
+                                                {rootFiles.map((file, index) => {
+                                                    const actualIndex = fileToIndexMap.get(file) ?? -1
+                                                    let displayName = file.name
+                                                    if ('webkitRelativePath' in file) {
+                                                        const webkitPath = (file as any).webkitRelativePath
+                                                        if (webkitPath && typeof webkitPath === 'string') {
+                                                            const pathParts = webkitPath.split('/')
+                                                            displayName = pathParts[pathParts.length - 1] || file.name
+                                                        } else if (file.name.includes('/')) {
+                                                            const pathParts = file.name.split('/')
+                                                            displayName = pathParts[pathParts.length - 1] || file.name
+                                                        }
+                                                    } else if (file.name.includes('/')) {
+                                                        const pathParts = file.name.split('/')
+                                                        displayName = pathParts[pathParts.length - 1] || file.name
+                                                    }
+                                                    
+                                                    return (
+                                                        <div key={`root-${file.name}-${index}`}
+                                                            className="flex items-center gap-3 p-3 rounded-lg border bg-gray-50 hover:bg-gray-100 transition-colors">
+                                                            <div className="flex-shrink-0">{getFileIcon(file)}</div>
+                                                            <div className="flex-1 min-w-0">
+                                                                <p className="text-sm font-medium text-gray-900 truncate">
+                                                                    {displayName}
+                                                                </p>
+                                                                <p className="text-xs text-gray-600">
+                                                                    {formatFileSize(file.size)}
+                                                                </p>
+                                                            </div>
+                                                            {actualIndex >= 0 && (
+                                                                <Button
+                                                                    variant="ghost"
+                                                                    size="sm"
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation()
+                                                                        handleFileRemove(viewingFolder.fieldId, actualIndex)
+                                                                        // If this was the last file in the folder, close the viewer
+                                                                        const remainingFiles = folderFiles.filter(f => f !== file)
+                                                                        if (remainingFiles.length === 0) {
+                                                                            setViewingFolder(null)
+                                                                        }
+                                                                    }}
+                                                                    className="flex-shrink-0 text-red-600 hover:text-red-700 hover:bg-red-50 h-8 w-8 p-0"
+                                                                >
+                                                                    <Trash2 className="w-4 h-4" />
+                                                                </Button>
+                                                            )}
+                                                        </div>
+                                                    )
+                                                })}
+                                                
+                                                {/* Subfolder files */}
+                                                {Object.entries(subfolderGroups).map(([subfolderName, subfolderFiles]) => (
+                                                    <div key={subfolderName} className="space-y-2">
+                                                        {subfolderFiles.map((file, index) => {
+                                                            const actualIndex = fileToIndexMap.get(file) ?? -1
+                                                            let displayName = file.name
+                                                            if ('webkitRelativePath' in file) {
+                                                                const webkitPath = (file as any).webkitRelativePath
+                                                                if (webkitPath && typeof webkitPath === 'string') {
+                                                                    const pathParts = webkitPath.split('/')
+                                                                    const fileName = pathParts[pathParts.length - 1] || file.name
+                                                                    // Show as "subfolder/filename"
+                                                                    displayName = `${subfolderName}/${fileName}`
+                                                                } else if (file.name.includes('/')) {
+                                                                    const pathParts = file.name.split('/')
+                                                                    const fileName = pathParts[pathParts.length - 1] || file.name
+                                                                    displayName = `${subfolderName}/${fileName}`
+                                                                } else {
+                                                                    displayName = `${subfolderName}/${file.name}`
+                                                                }
+                                                            } else if (file.name.includes('/')) {
+                                                                const pathParts = file.name.split('/')
+                                                                const fileName = pathParts[pathParts.length - 1] || file.name
+                                                                displayName = `${subfolderName}/${fileName}`
+                                                            } else {
+                                                                displayName = `${subfolderName}/${file.name}`
+                                                            }
+                                                            
+                                                            return (
+                                                                <div key={`${subfolderName}-${file.name}-${index}`}
+                                                                    className="flex items-center gap-3 p-3 rounded-lg border bg-gray-50 hover:bg-gray-100 transition-colors">
+                                                                    <div className="flex-shrink-0">{getFileIcon(file)}</div>
+                                                                    <div className="flex-1 min-w-0">
+                                                                        <p className="text-sm font-medium text-gray-900 truncate">
+                                                                            {displayName}
+                                                                        </p>
+                                                                        <p className="text-xs text-gray-600">
+                                                                            {formatFileSize(file.size)}
+                                                                        </p>
+                                                                    </div>
+                                                                    {actualIndex >= 0 && (
+                                                                        <Button
+                                                                            variant="ghost"
+                                                                            size="sm"
+                                                                            onClick={(e) => {
+                                                                                e.stopPropagation()
+                                                                                handleFileRemove(viewingFolder.fieldId, actualIndex)
+                                                                                // If this was the last file in the folder, close the viewer
+                                                                                const remainingFiles = folderFiles.filter(f => f !== file)
+                                                                                if (remainingFiles.length === 0) {
+                                                                                    setViewingFolder(null)
+                                                                                }
+                                                                            }}
+                                                                            className="flex-shrink-0 text-red-600 hover:text-red-700 hover:bg-red-50 h-8 w-8 p-0"
+                                                                        >
+                                                                            <Trash2 className="w-4 h-4" />
+                                                                        </Button>
+                                                                    )}
+                                                                </div>
+                                                            )
+                                                        })}
+                                                    </div>
+                                                ))}
+                                            </>
+                                        )
+                                    })()}
                                 </div>
                             </div>
                             
@@ -1664,7 +1957,7 @@ export default function UploadForm({ isPreview = false, formId, initialData, for
                 )
             })()}
             
-            {/* Error Modal */}
+            {/* Error Modal - File Size Exceeded */}
             <Dialog open={showErrorModal} onOpenChange={setShowErrorModal}>
                 <DialogContent className="sm:max-w-md">
                     <DialogHeader>
@@ -1700,6 +1993,39 @@ export default function UploadForm({ isPreview = false, formId, initialData, for
                                 setRejectedFilesData(null)
                             }}
                             className="px-6 hover:opacity-90 transition-opacity"
+                        >
+                            OK
+                        </Button>
+                    </div>
+                </DialogContent>
+            </Dialog>
+
+            {/* Empty Form Error Modal */}
+            <Dialog open={showEmptyFormModal} onOpenChange={setShowEmptyFormModal}>
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <div className="flex items-center gap-3 mb-4">
+                            <div className="p-2 bg-red-100 rounded-full">
+                                <AlertCircle className="w-6 h-6 text-red-600" />
+                            </div>
+                            <DialogTitle className="text-xl font-bold text-gray-900">No Files to Upload</DialogTitle>
+                        </div>
+                        <DialogDescription className="text-base text-gray-700">
+                            {emptyFormMessage}
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="flex justify-end gap-3 mt-6">
+                        <Button
+                            onClick={() => {
+                                setShowEmptyFormModal(false)
+                                setEmptyFormMessage("")
+                            }}
+                            className="px-6 hover:opacity-90 transition-opacity"
+                            style={{
+                                backgroundColor: primaryColor,
+                                color: buttonTextColor,
+                                borderColor: primaryColor
+                            }}
                         >
                             OK
                         </Button>
